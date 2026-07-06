@@ -182,6 +182,7 @@ table.stats td.num{font-variant-numeric:tabular-nums}
     <button data-tab="practice" class="active">練習</button>
     <button data-tab="mock">本番モード</button>
     <button data-tab="history">履歴</button>
+    <button data-tab="help">❓ 使い方</button>
   </nav>
 </header>
 <main>
@@ -213,6 +214,43 @@ table.stats td.num{font-variant-numeric:tabular-nums}
   <!-- ============ 履歴 ============ -->
   <section id="tab-history" hidden>
     <div class="card" id="hist-box"></div>
+  </section>
+
+  <!-- ============ 使い方 ============ -->
+  <section id="tab-help" hidden>
+    <div class="card">
+      <h3>練習モード</h3>
+      <p class="small muted">シナリオ・ドメインで絞り込み、EN/JA/EN+JA表示を切り替えて1問ずつ解答できます。「未正解のみ」にチェックすると、まだ正解していない問題だけに絞れます。解答すると解説が表示されます。</p>
+    </div>
+    <div class="card">
+      <h3>本番モード</h3>
+      <p class="small muted">60問・120分の本番同等シミュレーションです。終了すると結果画面が表示され、「JSONダウンロード」ボタンで結果ファイルを保存できます。このJSONを開発者に渡すと、弱点ドメインの分析レポートを作成できます。</p>
+    </div>
+    <div class="card">
+      <h3>履歴</h3>
+      <p class="small muted">これまでの本番モードの受験結果一覧と、下部に「コメント（フィードバック）」欄が表示されます。</p>
+    </div>
+    <div class="card">
+      <h3>👤 学習者ごとの記録</h3>
+      <p class="small muted">
+        ヘッダー右上の「👤 学習者」プルダウンで、複数人でこのコンソールを共用できます。<br>
+        「＋ 学習者を追加…」から名前を登録すると、以後その名前を選んでいる間は<br>
+        ・練習モードの正解履歴（「未正解のみ」フィルタの判定）<br>
+        ・本番モードの結果（履歴・ダウンロードするJSON内の <code>user</code> フィールド）<br>
+        ・コメント（誰が書いたか）<br>
+        がすべてその学習者名に紐づいて別々に記録されます。名前を選ばない（「（名前未設定）」のまま）場合は共通の記録として扱われます。<br>
+        <strong>記録はこのブラウザ内（localStorage）にのみ保存されます。</strong>別のPC・別のブラウザ・シークレットモードとは共有されず、ブラウザのデータを消去すると失われるため、本番モードの結果は都度JSONダウンロードして保存することをおすすめします。
+      </p>
+    </div>
+    <div class="card">
+      <h3>💬 問題へのコメント方法</h3>
+      <p class="small muted">
+        練習モードで解答すると表示される解説の下に「💬 この問題にコメント・質問を残す」という折りたたみ欄があります。<br>
+        ここに内容の誤りの指摘・疑問点などを書いて「コメントを保存」を押すと、その問題ID・学習者名・日時とともにブラウザ内に保存されます。<br>
+        保存したコメントは「履歴」タブ下部の「💬 コメント（フィードバック）」欄にまとまって表示され、「JSONエクスポート」ボタンでファイルに書き出せます。<br>
+        書き出したJSONファイルを開発者（江尻）に送ってもらえれば、問題の修正に反映します。「消去」ボタンで保存済みコメントを削除できます（エクスポート後の利用を推奨）。
+      </p>
+    </div>
   </section>
 </main>
 
@@ -462,7 +500,7 @@ function explanationHTML(q, chosen, lang){
 document.querySelectorAll('.tabs button').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('active', b === btn));
-    ['practice','mock','history'].forEach(t => {
+    ['practice','mock','history','help'].forEach(t => {
       $('#tab-' + t).hidden = (t !== btn.dataset.tab);
     });
     if (btn.dataset.tab === 'history') renderHistory();
