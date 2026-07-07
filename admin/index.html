@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CCA-F 管理画面</title>
+<style>
+:root{
+  --bg:#0e1116; --card:#1a202b; --card2:#212936; --line:#2c3646;
+  --text:#e6ebf2; --muted:#8b98ab; --dim:#5d6b80;
+  --accent:#5aa9ff; --ok:#3ecf8e; --ng:#ff6b6b; --warn:#f7c948;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--text); min-height:100vh;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic UI",Meiryo,sans-serif;
+  line-height:1.6; font-size:14.5px; padding:20px 16px 60px;
+}
+h1{font-size:19px; margin-bottom:4px}
+.sub{color:var(--muted); font-size:12.5px; margin-bottom:18px}
+button{font:inherit; color:inherit; cursor:pointer; border:1px solid var(--line); background:var(--card2); border-radius:8px; padding:6px 12px}
+button:hover{border-color:var(--accent)}
+.card{background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin-bottom:14px}
+table{width:100%; border-collapse:collapse; font-size:13.5px}
+th,td{padding:6px 8px; text-align:left; border-bottom:1px solid var(--line)}
+th{color:var(--muted); font-weight:600; font-size:12px}
+tr.student-row{cursor:pointer}
+tr.student-row:hover{background:rgba(90,169,255,.08)}
+.num{text-align:right; font-variant-numeric:tabular-nums}
+.pill{display:inline-block; padding:1px 8px; border-radius:99px; font-size:12px}
+.pill.ok{color:var(--ok); border:1px solid var(--ok)}
+.pill.ng{color:var(--ng); border:1px solid var(--ng)}
+.detail{display:none; margin-top:8px}
+.detail.open{display:block}
+.muted{color:var(--muted)}
+.small{font-size:12.5px}
+.grid2{display:grid; grid-template-columns:1fr 1fr; gap:14px}
+@media(max-width:800px){.grid2{grid-template-columns:1fr}}
+.comment-row{border-bottom:1px solid var(--line); padding:6px 0}
+.empty{color:var(--dim); text-align:center; padding:20px 0}
+code{background:var(--card2); padding:1px 5px; border-radius:4px; font-size:12.5px}
+</style>
+</head>
+<body>
+<h1>CCA-F 管理画面</h1>
+<div class="sub">学習者ごとの正答率・誤答傾向・コメントを確認します（管理者専用ページ）</div>
+<div id="root"><div class="card">読み込み中…</div></div>
+
+<script>
+(function(){
+'use strict';
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s)
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+function domainOf(qid){
+  const m = /^S\d+-D(\d+)-/.exec(qid || '');
+  return m ? 'D' + m[1] : '?';
+}
+function fmtDateTime(iso){
+  if (!iso) return '';
+  const d = new Date(iso);
+  const p = n => String(n).padStart(2,'0');
+  return d.getFullYear() + '-' + p(d.getMonth()+1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+}
+
+// 練習＋本番の解答から、問題ごとの正誤集計を作る
+function perQuestionStats(rec){
+  const stats = {}; // qid -> {attempts, wrong}
+  const bump = (qid, correct) => {
+    const s = stats[qid] || { attempts: 0, wrong: 0 };
+    s.attempts += 1;
+    if (!correct) s.wrong += 1;
+    stats[qid] = s;
+  };
+  Object.keys(rec.practice || {}).forEach(qid => {
+    const p = rec.practice[qid];
+    const attempts = p.attempts || 0;
+    const correct = p.correct || 0;
+    const wrong = Math.max(0, attempts - correct);
+    stats[qid] = { attempts, wrong };
+  });
+  (rec.mockHistory || []).forEach(h => {
+    (h.answers || []).forEach(a => bump(a.id, a.chosen === a.correct));
+  });
+  return stats;
+}
+
+function overallAccuracy(rec){
+  const stats = perQuestionStats(rec);
+  let attempts = 0, wrong = 0;
+  Object.values(stats).forEach(s => { attempts += s.attempts; wrong += s.wrong; });
+  return { attempts, wrong, pct: attempts ? Math.round((attempts - wrong) / attempts * 100) : null };
+}
+
+function latestMock(rec){
+  const hist = (rec.mockHistory || []).slice().sort((a,b) => new Date(b.finishedAt) - new Date(a.finishedAt));
+  return hist[0] || null;
+}
+
+function renderStudentDetail(rec){
+  const stats = perQuestionStats(rec);
+  const rows = Object.keys(stats)
+    .map(qid => ({ qid, ...stats[qid] }))
+    .filter(r => r.wrong > 0)
+    .sort((a,b) => b.wrong - a.wrong || b.attempts - a.attempts)
+    .slice(0, 30);
+
+  let h = '<div class="grid2">';
+
+  h += '<div>';
+  h += '<h3 class="small" style="margin-bottom:6px">誤答が多い問題（上位30）</h3>';
+  if (!rows.length){
+    h += '<p class="empty small">誤答データがありません</p>';
+  } else {
+    h += '<table><tr><th>問題ID</th><th>D</th><th class="num">誤答</th><th class="num">試行</th></tr>';
+    rows.forEach(r => {
+      h += '<tr><td><code>' + esc(r.qid) + '</code></td><td class="muted">' + esc(domainOf(r.qid)) + '</td>'
+        + '<td class="num">' + r.wrong + '</td><td class="num">' + r.attempts + '</td></tr>';
+    });
+    h += '</table>';
+  }
+  h += '</div>';
+
+  h += '<div>';
+  h += '<h3 class="small" style="margin-bottom:6px">本番モード受験履歴</h3>';
+  const hist = (rec.mockHistory || []).slice().sort((a,b) => new Date(b.finishedAt) - new Date(a.finishedAt));
+  if (!hist.length){
+    h += '<p class="empty small">受験履歴がありません</p>';
+  } else {
+    h += '<table><tr><th>日時</th><th class="num">素点</th><th class="num">換算</th></tr>';
+    hist.forEach(r => {
+      h += '<tr><td>' + esc(fmtDateTime(r.finishedAt)) + '</td>'
+        + '<td class="num">' + r.rawScore + '/' + r.total + '</td>'
+        + '<td class="num">' + r.scaledEstimate + '</td></tr>';
+    });
+    h += '</table>';
+  }
+  h += '</div>';
+
+  h += '</div>';
+
+  h += '<h3 class="small" style="margin:14px 0 6px">コメント（' + (rec.comments || []).length + '件）</h3>';
+  const cms = (rec.comments || []).slice().sort((a,b) => new Date(b.at) - new Date(a.at));
+  if (!cms.length){
+    h += '<p class="empty small">コメントはありません</p>';
+  } else {
+    cms.forEach(c => {
+      h += '<div class="comment-row"><span class="muted small">' + esc(fmtDateTime(c.at)) + '　'
+        + '<code>' + esc(c.id) + '</code></span><div>' + esc(c.text) + '</div></div>';
+    });
+  }
+  return h;
+}
+
+function render(records){
+  const root = $('#root');
+  if (!records.length){
+    root.innerHTML = '<div class="card empty">まだ記録がありません（学習者がメールアドレスを登録し、練習/本番モードを利用すると表示されます）</div>';
+    return;
+  }
+  let h = '<div class="card"><table><tr>'
+    + '<th>学習者（メール）</th><th class="num">総合正答率</th><th class="num">練習+本番試行数</th>'
+    + '<th class="num">本番受験回数</th><th class="num">直近スコア</th><th class="num">コメント数</th><th>最終更新</th>'
+    + '</tr>';
+  records.forEach((rec, i) => {
+    const acc = overallAccuracy(rec);
+    const lm = latestMock(rec);
+    const pctPill = acc.pct == null ? '<span class="muted">-</span>'
+      : '<span class="pill ' + (acc.pct >= 70 ? 'ok' : 'ng') + '">' + acc.pct + '%</span>';
+    h += '<tr class="student-row" data-idx="' + i + '">'
+      + '<td>' + esc(rec.email) + '</td>'
+      + '<td class="num">' + pctPill + '</td>'
+      + '<td class="num">' + acc.attempts + '</td>'
+      + '<td class="num">' + (rec.mockHistory || []).length + '</td>'
+      + '<td class="num">' + (lm ? lm.scaledEstimate : '-') + '</td>'
+      + '<td class="num">' + (rec.comments || []).length + '</td>'
+      + '<td class="muted small">' + esc(fmtDateTime(rec.updatedAt)) + '</td>'
+      + '</tr>'
+      + '<tr><td colspan="7"><div class="detail" id="detail-' + i + '"></div></td></tr>';
+  });
+  h += '</table></div>';
+  root.innerHTML = h;
+
+  root.querySelectorAll('.student-row').forEach(row => {
+    row.addEventListener('click', () => {
+      const idx = row.dataset.idx;
+      const box = $('#detail-' + idx);
+      if (box.classList.contains('open')){
+        box.classList.remove('open');
+        return;
+      }
+      if (!box.dataset.rendered){
+        box.innerHTML = renderStudentDetail(records[idx]);
+        box.dataset.rendered = '1';
+      }
+      box.classList.add('open');
+    });
+  });
+}
+
+fetch('/admin/api/records')
+  .then(r => r.json())
+  .then(data => {
+    if (data.error){
+      $('#root').innerHTML = '<div class="card">エラー: ' + esc(data.error) + '</div>';
+      return;
+    }
+    render((data.records || []).sort((a,b) => (a.email||'').localeCompare(b.email||'')));
+  })
+  .catch(err => {
+    $('#root').innerHTML = '<div class="card">読み込みに失敗しました: ' + esc(String(err)) + '</div>';
+  });
+})();
+</script>
+</body>
+</html>

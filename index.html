@@ -41,6 +41,9 @@ header{
 .brand .meta{font-size:12px; color:var(--muted)}
 .user-ctl{display:flex; align-items:center; gap:6px; margin-left:auto; font-size:12.5px; color:var(--muted); white-space:nowrap}
 .user-ctl select{max-width:180px}
+.sync-status{font-size:11.5px; color:var(--dim); white-space:nowrap}
+.sync-status.ok{color:var(--ok)}
+.sync-status.warn{color:var(--warn)}
 .chip.user{color:var(--accent2); border-color:var(--accent2)}
 .tabs{display:flex; gap:4px; margin-top:10px}
 .tabs button{
@@ -176,12 +179,14 @@ table.stats td.num{font-variant-numeric:tabular-nums}
   <div class="brand">
     <h1><span>CCA-F</span> 練習試験コンソール</h1>
     <div class="meta" id="bank-meta"></div>
-    <label class="user-ctl">👤 学習者 <select id="user-select"></select></label>
+    <label class="user-ctl">👤 メール <select id="user-select"></select></label>
+    <span id="sync-status" class="sync-status"></span>
   </div>
   <nav class="tabs">
     <button data-tab="practice" class="active">練習</button>
     <button data-tab="mock">本番モード</button>
     <button data-tab="history">履歴</button>
+    <button data-tab="help">❓ 使い方</button>
   </nav>
 </header>
 <main>
@@ -213,6 +218,44 @@ table.stats td.num{font-variant-numeric:tabular-nums}
   <!-- ============ 履歴 ============ -->
   <section id="tab-history" hidden>
     <div class="card" id="hist-box"></div>
+  </section>
+
+  <!-- ============ 使い方 ============ -->
+  <section id="tab-help" hidden>
+    <div class="card">
+      <h3>練習モード</h3>
+      <p class="small muted">シナリオ・ドメインで絞り込み、EN/JA/EN+JA表示を切り替えて1問ずつ解答できます。「未正解のみ」にチェックすると、まだ正解していない問題だけに絞れます。解答すると解説が表示されます。</p>
+    </div>
+    <div class="card">
+      <h3>本番モード</h3>
+      <p class="small muted">60問・120分の本番同等シミュレーションです。終了すると結果画面が表示され、「JSONダウンロード」ボタンで結果ファイルを保存できます。このJSONを開発者に渡すと、弱点ドメインの分析レポートを作成できます。</p>
+    </div>
+    <div class="card">
+      <h3>履歴</h3>
+      <p class="small muted">これまでの本番モードの受験結果一覧と、下部に「コメント（フィードバック）」欄が表示されます。</p>
+    </div>
+    <div class="card">
+      <h3>👤 学習者ごとの記録（メールアドレスでクラウド同期）</h3>
+      <p class="small muted">
+        ヘッダー右上の「👤 メール」プルダウンから「＋ メールアドレスを登録…」でご自身のメールアドレスを登録すると、以後そのメールアドレスを選んでいる間は<br>
+        ・練習モードの正解履歴（「未正解のみ」フィルタの判定）<br>
+        ・本番モードの結果（履歴・ダウンロードするJSON内の <code>user</code> フィールド）<br>
+        ・コメント（誰が書いたか）<br>
+        がすべてそのメールアドレスに紐づいて記録され、<strong>クラウド（サーバー）にも自動的に同期されます</strong>。ヘッダーの「☁️ 同期済み」表示で確認できます。<br>
+        同じメールアドレスを別のブラウザ・別の端末で登録すれば、クラウド上の記録が自動的に引き継がれます（この端末のブラウザにも念のためlocalStorageとして保存されるので、オフラインでも練習は続けられます）。<br>
+        メールアドレスを選ばない（「（メール未設定）」のまま）場合は、この端末・このブラウザだけのローカル記録として扱われ、クラウドには同期されません。<br>
+        <strong>ご注意:</strong> このサイトの共通ID/パスワードを知っている人は誰でも、他の人のメールアドレスを入力すればその人の記録を閲覧・上書きできてしまいます（メールアドレス自体にはパスワードによる保護がありません）。学習用の簡易的な仕組みとしてご利用ください。
+      </p>
+    </div>
+    <div class="card">
+      <h3>💬 問題へのコメント方法</h3>
+      <p class="small muted">
+        練習モードで解答すると表示される解説の下に「💬 この問題にコメント・質問を残す」という折りたたみ欄があります。<br>
+        ここに内容の誤りの指摘・疑問点などを書いて「コメントを保存」を押すと、その問題ID・学習者名・日時とともにブラウザ内に保存されます。<br>
+        保存したコメントは「履歴」タブ下部の「💬 コメント（フィードバック）」欄にまとまって表示され、「JSONエクスポート」ボタンでファイルに書き出せます。<br>
+        書き出したJSONファイルを開発者（江尻）に送ってもらえれば、問題の修正に反映します。「消去」ボタンで保存済みコメントを削除できます（エクスポート後の利用を推奨）。
+      </p>
+    </div>
   </section>
 </main>
 
@@ -270,36 +313,119 @@ function downloadJSON(obj, filename){
   setTimeout(() => URL.revokeObjectURL(a.href), 5000);
 }
 /* ---------- 学習者プロファイル ----------
-   練習の正解履歴は学習者ごとに別キーで保存（未設定は従来キー＝後方互換）。
-   本番モードの結果には user フィールドが記録される。 */
+   学習者はメールアドレスで識別する。練習の正解履歴は学習者ごとに別キーで保存
+   （未設定は従来キー＝後方互換）。本番モードの結果・コメントには user フィールド
+   （＝メールアドレス）が記録される。
+   さらに /api/record 経由でCloudflare KVへ同期し、ブラウザ・端末をまたいで記録を
+   引き継げるようにする（サイト全体のBasic認証にのみ依存。詳細はREADME参照）。 */
 function currentUser(){ return loadLS(LS_CUR_USER, ''); }
 function userList(){ return loadLS(LS_USERS, []); }
-function userLabel(u){ return u ? u : '（名前未設定）'; }
+function userLabel(u){ return u ? u : '（メール未設定）'; }
 function fileSlug(u){ return u ? '-' + u.replace(/[^\w぀-ヿ゠-ヿ一-鿿-]+/g, '_') : ''; }
-function practiceKey(){ const u = currentUser(); return u ? LS_PRACTICE + '::' + u : LS_PRACTICE; }
+function practiceKey(u){ u = u != null ? u : currentUser(); return u ? LS_PRACTICE + '::' + u : LS_PRACTICE; }
+function isValidEmail(s){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(s || '').trim()); }
+
+function setSyncStatus(text, cls){
+  const el = $('#sync-status');
+  if (!el) return;
+  el.textContent = text;
+  el.className = 'sync-status' + (cls ? ' ' + cls : '');
+}
+
+// この学習者(email)分のローカルデータをまとめて返す（クラウド送信用）
+function bundleForUser(email){
+  return {
+    practice: loadLS(practiceKey(email), {}),
+    mockHistory: loadLS(LS_HISTORY, []).filter(h => (h.user || '') === email),
+    comments: commentsAll().filter(c => (c.user || '') === email),
+  };
+}
+// クラウドの記録をローカルへマージ（練習履歴は attempts/correct が多い方を採用、
+// 本番履歴・コメントは finishedAt/at で重複排除して合体する）
+function mergeBundleIntoLocal(email, remote){
+  if (!remote) return;
+  const localPractice = loadLS(practiceKey(email), {});
+  const remotePractice = remote.practice || {};
+  const mergedPractice = Object.assign({}, localPractice);
+  Object.keys(remotePractice).forEach(qid => {
+    const r = remotePractice[qid], l = mergedPractice[qid];
+    if (!l || (r.attempts || 0) > (l.attempts || 0)) mergedPractice[qid] = r;
+  });
+  saveLS(practiceKey(email), mergedPractice);
+
+  const localHist = loadLS(LS_HISTORY, []);
+  const seenHist = new Set(localHist.map(h => (h.user || '') + '|' + h.finishedAt));
+  (remote.mockHistory || []).forEach(h => {
+    const key = (h.user || '') + '|' + h.finishedAt;
+    if (!seenHist.has(key)){ localHist.push(h); seenHist.add(key); }
+  });
+  saveLS(LS_HISTORY, localHist);
+
+  const localComments = loadLS(LS_COMMENTS, []);
+  const seenC = new Set(localComments.map(c => (c.user || '') + '|' + c.at + '|' + c.id));
+  (remote.comments || []).forEach(c => {
+    const key = (c.user || '') + '|' + c.at + '|' + c.id;
+    if (!seenC.has(key)){ localComments.push(c); seenC.add(key); }
+  });
+  saveLS(LS_COMMENTS, localComments);
+}
+async function syncPull(email){
+  if (!isValidEmail(email)) return;
+  setSyncStatus('☁️ 同期中…');
+  try {
+    const res = await fetch('/api/record?email=' + encodeURIComponent(email));
+    const data = await res.json();
+    if (data) mergeBundleIntoLocal(email, data);
+    setSyncStatus('☁️ 同期済み', 'ok');
+  } catch (e) {
+    setSyncStatus('⚠️ オフライン（このブラウザの記録のみ）', 'warn');
+  }
+}
+async function syncPush(email){
+  if (!isValidEmail(email)) return;
+  try {
+    const bundle = bundleForUser(email);
+    await fetch('/api/record', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(Object.assign({ email }, bundle)),
+    });
+    setSyncStatus('☁️ 同期済み', 'ok');
+  } catch (e) {
+    setSyncStatus('⚠️ 同期エラー（オフラインの可能性）', 'warn');
+  }
+}
 function renderUserSelect(){
   const sel = $('#user-select');
   const cur = currentUser();
   const users = userList();
-  let h = '<option value="">（名前未設定）</option>';
+  let h = '<option value="">（メール未設定）</option>';
   users.forEach(u => { h += '<option value="' + esc(u) + '">' + esc(u) + '</option>'; });
-  h += '<option value="__add__">＋ 学習者を追加…</option>';
+  h += '<option value="__add__">＋ メールアドレスを登録…</option>';
   sel.innerHTML = h;
   sel.value = users.includes(cur) ? cur : '';
 }
 (function initUserSelect(){
   renderUserSelect();
+  if (currentUser()) syncPull(currentUser());
   $('#user-select').addEventListener('change', () => {
     const sel = $('#user-select');
     if (sel.value === '__add__'){
-      const name = (prompt('学習者名を入力してください（例: 山田太郎 / Taro）') || '').trim();
-      if (name && name !== '__add__'){
+      const raw = (prompt('メールアドレスを入力してください（例: taro@example.com）\nこのメールアドレスに紐づけて成績・履歴・コメントがクラウドに保存され、別のブラウザ・端末からも同じメールアドレスで引き継げます。') || '').trim().toLowerCase();
+      if (raw && raw !== '__add__'){
+        if (!isValidEmail(raw)){
+          alert('メールアドレスの形式が正しくないようです。もう一度お試しください。');
+          renderUserSelect();
+          return;
+        }
         const users = userList();
-        if (!users.includes(name)){ users.push(name); saveLS(LS_USERS, users); }
-        saveLS(LS_CUR_USER, name);
+        if (!users.includes(raw)){ users.push(raw); saveLS(LS_USERS, users); }
+        saveLS(LS_CUR_USER, raw);
+        syncPull(raw).then(() => { renderUserSelect(); applyPracticeFilter(); if (!$('#tab-history').hidden) renderHistory(); });
       }
     } else {
       saveLS(LS_CUR_USER, sel.value);
+      if (sel.value) syncPull(sel.value).then(() => { applyPracticeFilter(); if (!$('#tab-history').hidden) renderHistory(); });
     }
     renderUserSelect();
     applyPracticeFilter();
@@ -330,6 +456,7 @@ document.addEventListener('click', e => {
   ta.value = '';
   btn.textContent = '保存しました ✓ / Saved';
   setTimeout(() => { btn.textContent = 'コメントを保存 / Save'; }, 1600);
+  if (currentUser()) syncPush(currentUser());
 });
 function feedbackSectionHTML(){
   const cms = commentsAll();
@@ -462,7 +589,7 @@ function explanationHTML(q, chosen, lang){
 document.querySelectorAll('.tabs button').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('active', b === btn));
-    ['practice','mock','history'].forEach(t => {
+    ['practice','mock','history','help'].forEach(t => {
       $('#tab-' + t).hidden = (t !== btn.dataset.tab);
     });
     if (btn.dataset.tab === 'history') renderHistory();
@@ -557,6 +684,7 @@ function answerPractice(q, key){
   hist[q.id] = rec;
   saveLS(practiceKey(), hist);
   renderPractice();
+  if (currentUser()) syncPush(currentUser());
 }
 function nextPractice(){
   practice.chosen = null;
@@ -796,6 +924,7 @@ function finishMock(auto){
   lastResult = { result, questions: mock.questions.slice() };
   mock = null;
   renderMockResult();
+  if (currentUser()) syncPush(currentUser());
 }
 function rateRowHTML(label, ok, total){
   const pct = total ? Math.round(ok / total * 100) : 0;
