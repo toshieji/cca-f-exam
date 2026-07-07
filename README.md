@@ -3,6 +3,7 @@
 CCA-F (Claude Certified Architect – Foundations) 対策のオリジナル問題コンソール（練習モード / 本番同等モード / 履歴・コメント機能、日英対応）。
 
 - `index.html` — 試験コンソール本体（単一ファイル・生成物）。**編集禁止**（正本は開発リポジトリ側。ここへは生成結果だけが同期される。ただし学習者/コメント/クラウド同期まわりのUIロジックはこのリポジトリのみに存在する）
+- `cca-f-console-offline.html` — **旧版（完全オフライン・保管用）**。このHTML1つだけでインターネットなしで動作する（外部通信ゼロ）。メール同期・管理画面は含まず、記録はブラウザ内(localStorage)のみ。ダブルクリックでブラウザで開けば単体で使える
 - `functions/_middleware.js` — Cloudflare Pages 用 Basic 認証ミドルウェア（サイト全体・受講生向け）
 - `functions/api/record.js` — 学習者（メールアドレス）ごとの記録をCloudflare KVに保存/取得するAPI
 - `functions/admin/_middleware.js` — `/admin/*` 用の追加Basic認証（管理者専用・二重認証）

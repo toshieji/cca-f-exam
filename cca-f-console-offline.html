@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<!--
+  CCA-F 練習試験コンソール — 旧版（完全オフライン・単一ファイル版）
+  ・このHTMLファイル1つだけで、インターネット接続なしで動作します（外部通信ゼロ）。
+  ・メールアドレスによるクラウド同期・管理画面は含みません。記録はこのブラウザ内(localStorage)のみに保存されます。
+  ・クラウド同期・管理画面が必要な場合は、同リポジトリの index.html（Cloudflare Pages配信版）を使ってください。
+  ・このファイルは保管用の旧版です。ダブルクリックでブラウザで開けば単体で使えます。
+-->
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CCA-F 練習試験コンソール</title>
+<style>
+:root{
+  --bg:#0e1116; --bg2:#151a22; --card:#1a202b; --card2:#212936;
+  --line:#2c3646; --text:#e6ebf2; --muted:#8b98ab; --dim:#5d6b80;
+  --accent:#5aa9ff; --accent2:#8b7bff;
+  --ok:#3ecf8e; --ok-bg:rgba(62,207,142,.12);
+  --ng:#ff6b6b; --ng-bg:rgba(255,107,107,.12);
+  --warn:#f7c948; --warn-bg:rgba(247,201,72,.10);
+  --flag:#f7a83d;
+  --radius:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic UI",Meiryo,sans-serif;
+  line-height:1.65; font-size:15px; min-height:100vh;
+}
+a{color:var(--accent)}
+button{font:inherit; color:inherit; cursor:pointer; border:1px solid var(--line); background:var(--card2); border-radius:8px; padding:6px 14px}
+button:hover{border-color:var(--accent)}
+button:disabled{opacity:.45; cursor:default}
+select,input[type=number]{
+  font:inherit; color:var(--text); background:var(--card2);
+  border:1px solid var(--line); border-radius:8px; padding:6px 10px;
+}
+header{
+  position:sticky; top:0; z-index:20; background:rgba(14,17,22,.92);
+  backdrop-filter:blur(8px); border-bottom:1px solid var(--line);
+  padding:14px 18px 0;
+}
+.brand{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap}
+.brand h1{font-size:18px; font-weight:700; letter-spacing:.02em}
+.brand h1 span{background:linear-gradient(90deg,var(--accent),var(--accent2)); -webkit-background-clip:text; background-clip:text; color:transparent}
+.brand .meta{font-size:12px; color:var(--muted)}
+.user-ctl{display:flex; align-items:center; gap:6px; margin-left:auto; font-size:12.5px; color:var(--muted); white-space:nowrap}
+.user-ctl select{max-width:180px}
+.chip.user{color:var(--accent2); border-color:var(--accent2)}
+.tabs{display:flex; gap:4px; margin-top:10px}
+.tabs button{
+  background:none; border:none; border-bottom:2px solid transparent; border-radius:0;
+  padding:8px 16px 10px; color:var(--muted); font-weight:600;
+}
+.tabs button:hover{color:var(--text)}
+.tabs button.active{color:var(--text); border-bottom-color:var(--accent)}
+main{max-width:960px; margin:0 auto; padding:18px 16px 80px}
+.card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:16px 18px; margin-bottom:14px}
+.muted{color:var(--muted)} .small{font-size:12.5px}
+.chips{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px}
+.chip{font-size:11.5px; padding:2px 9px; border-radius:99px; border:1px solid var(--line); color:var(--muted); background:var(--bg2)}
+.chip.draft{color:var(--warn); border-color:var(--warn); background:var(--warn-bg)}
+.chip.dom{color:var(--accent)}
+/* --- filters --- */
+.filters{display:flex; flex-wrap:wrap; gap:12px 18px; align-items:center}
+.filters label{display:flex; align-items:center; gap:7px; font-size:13.5px; color:var(--muted); white-space:nowrap; min-width:0; max-width:100%}
+.filters select{flex:1 1 auto; min-width:0; max-width:100%}
+.filters .chk{cursor:pointer; user-select:none}
+.seg{display:inline-flex; border:1px solid var(--line); border-radius:8px; overflow:hidden}
+.seg button{border:none; border-radius:0; background:var(--bg2); color:var(--muted); padding:5px 13px; font-size:13px}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button.active{background:var(--accent); color:#0b1220; font-weight:700}
+.progress-line{font-size:13px; color:var(--muted); margin:2px 2px 12px}
+.progress-line b{color:var(--text)}
+/* --- question --- */
+.qtext{margin:6px 0 4px; white-space:pre-wrap}
+.qtext.en{color:#d4ddea}
+.qtext.ja{color:var(--text)}
+.qtext.en + .qtext.ja{margin-top:10px; padding-top:10px; border-top:1px dashed var(--line)}
+.options{display:flex; flex-direction:column; gap:8px; margin-top:14px}
+.opt{
+  display:flex; gap:10px; text-align:left; align-items:flex-start;
+  background:var(--card2); border:1px solid var(--line); border-radius:10px; padding:10px 12px; width:100%;
+}
+.opt .key{
+  flex:0 0 26px; height:26px; display:flex; align-items:center; justify-content:center;
+  border-radius:7px; background:var(--bg2); border:1px solid var(--line); font-weight:700; font-size:13px;
+}
+.opt .body{flex:1}
+.opt .body .en{display:block; color:#d4ddea}
+.opt .body .en + .ja{display:block; margin-top:4px; color:var(--muted); font-size:13.5px}
+.opt:not(:disabled):hover{border-color:var(--accent)}
+.opt.correct{border-color:var(--ok); background:var(--ok-bg)}
+.opt.correct .key{background:var(--ok); border-color:var(--ok); color:#08131b}
+.opt.wrong-chosen{border-color:var(--ng); background:var(--ng-bg)}
+.opt.wrong-chosen .key{background:var(--ng); border-color:var(--ng); color:#08131b}
+.opt.selected{border-color:var(--accent); background:rgba(90,169,255,.10)}
+.opt.selected .key{background:var(--accent); border-color:var(--accent); color:#0b1220}
+/* --- explanation --- */
+.verdict{font-size:16px; font-weight:700; margin-bottom:8px}
+.verdict.ok{color:var(--ok)} .verdict.ng{color:var(--ng)}
+.exp-block{margin-top:12px}
+.exp-block h4{font-size:12.5px; text-transform:uppercase; letter-spacing:.08em; color:var(--dim); margin-bottom:5px}
+.exp-wrong{border-left:3px solid var(--line); padding:6px 10px; margin:6px 0; border-radius:0 8px 8px 0; background:var(--bg2)}
+.exp-wrong.mine{border-left-color:var(--ng); background:var(--ng-bg)}
+.exp-wrong .k{font-weight:700; color:var(--muted)}
+.exp-wrong.mine .k{color:var(--ng)}
+.exp-wrong.mine .mine-tag{font-size:11px; color:var(--ng); border:1px solid var(--ng); border-radius:99px; padding:0 7px; margin-left:6px}
+.lesson{background:var(--warn-bg); border:1px solid rgba(247,201,72,.35); border-radius:10px; padding:9px 12px; color:#f4dfa0}
+.fb-block summary{cursor:pointer; color:var(--muted); font-size:13px}
+.fb-block textarea{width:100%; margin-top:8px; background:var(--bg2); color:var(--text); border:1px solid var(--line); border-radius:8px; padding:8px 10px; font:inherit; font-size:13px; resize:vertical}
+.refs a{display:inline-block; margin:2px 10px 2px 0; font-size:13px}
+.qactions{display:flex; justify-content:flex-end; gap:10px; margin-top:4px}
+.btn-primary{background:var(--accent); border-color:var(--accent); color:#0b1220; font-weight:700; padding:8px 20px}
+.btn-primary:hover{filter:brightness(1.1)}
+.btn-danger{border-color:var(--ng); color:var(--ng)}
+.btn-flag.on{border-color:var(--flag); color:var(--flag); background:rgba(247,168,61,.12)}
+/* --- mock --- */
+.notice{border:1px solid rgba(247,201,72,.4); background:var(--warn-bg); border-radius:10px; padding:10px 14px; color:#f4dfa0; margin:12px 0}
+.exam-top{display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-bottom:12px}
+.timer{
+  font-variant-numeric:tabular-nums; font-size:26px; font-weight:800; letter-spacing:.04em;
+  background:var(--card); border:1px solid var(--line); border-radius:10px; padding:4px 16px;
+}
+.timer.low{color:var(--ng); border-color:var(--ng); animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.55}}
+.exam-top .spacer{flex:1}
+.exam-layout{display:grid; grid-template-columns:230px 1fr; gap:14px; align-items:start}
+.qnav{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:12px; position:sticky; top:110px}
+.qnav .grid{display:grid; grid-template-columns:repeat(5,1fr); gap:5px}
+.qnav .cell{
+  border:1px solid var(--line); background:var(--bg2); border-radius:6px;
+  font-size:11.5px; padding:5px 0; text-align:center; color:var(--muted);
+}
+.qnav .cell.answered{background:rgba(90,169,255,.22); border-color:var(--accent); color:var(--text)}
+.qnav .cell.flagged{border-color:var(--flag); color:var(--flag)}
+.qnav .cell.flagged.answered{background:rgba(247,168,61,.20)}
+.qnav .cell.current{outline:2px solid var(--accent2)}
+.qnav .legend{margin-top:10px; font-size:11px; color:var(--muted); display:flex; flex-direction:column; gap:3px}
+.qnav .legend i{display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:6px; vertical-align:-1px}
+.scenario-ctx{margin-bottom:12px}
+.scenario-ctx summary{cursor:pointer; color:var(--accent); font-size:13px; font-weight:600}
+.scenario-ctx p{margin-top:8px; font-size:13.5px; color:var(--muted); white-space:pre-wrap}
+/* --- result --- */
+.score-hero{display:flex; gap:22px; align-items:center; flex-wrap:wrap}
+.score-hero .big{font-size:46px; font-weight:800; line-height:1.1}
+.score-hero .big small{font-size:15px; color:var(--muted); font-weight:400}
+.badge{font-size:13px; font-weight:700; padding:5px 14px; border-radius:99px}
+.badge.pass{background:var(--ok-bg); color:var(--ok); border:1px solid var(--ok)}
+.badge.fail{background:var(--ng-bg); color:var(--ng); border:1px solid var(--ng)}
+table.stats{width:100%; border-collapse:collapse; font-size:13.5px}
+table.stats th,table.stats td{padding:7px 10px; border-bottom:1px solid var(--line); text-align:left}
+table.stats th{color:var(--dim); font-size:12px; text-transform:uppercase; letter-spacing:.06em}
+table.stats td.num{font-variant-numeric:tabular-nums}
+.bar{height:8px; border-radius:99px; background:var(--bg2); overflow:hidden; min-width:80px}
+.bar i{display:block; height:100%; border-radius:99px; background:linear-gradient(90deg,var(--accent),var(--accent2))}
+.bar.ok i{background:var(--ok)} .bar.ng i{background:var(--ng)}
+.review-item{border-top:1px solid var(--line); padding:16px 0}
+.review-item .rhead{display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:6px}
+.rmark{font-weight:800}
+.rmark.ok{color:var(--ok)} .rmark.ng{color:var(--ng)}
+/* --- history --- */
+.hist-row{display:flex; gap:14px; align-items:center; flex-wrap:wrap; padding:11px 4px; border-bottom:1px solid var(--line); font-size:13.5px}
+.hist-row .when{flex:0 0 150px; color:var(--muted)}
+.hist-row .score{flex:0 0 120px; font-variant-numeric:tabular-nums}
+.hist-row .bar{flex:1}
+.empty{color:var(--dim); text-align:center; padding:36px 0}
+@media(max-width:720px){
+  main{padding:14px 10px 70px}
+  .filters label{flex:1 1 100%}
+  .exam-layout{grid-template-columns:1fr}
+  .qnav{position:static}
+  .qnav .grid{grid-template-columns:repeat(10,1fr)}
+  .score-hero .big{font-size:36px}
+  .hist-row .when{flex-basis:100%}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <h1><span>CCA-F</span> 練習試験コンソール</h1>
+    <div class="meta" id="bank-meta"></div>
+    <label class="user-ctl">👤 学習者 <select id="user-select"></select></label>
+  </div>
+  <nav class="tabs">
+    <button data-tab="practice" class="active">練習</button>
+    <button data-tab="mock">本番モード</button>
+    <button data-tab="history">履歴</button>
+    <button data-tab="help">❓ 使い方</button>
+  </nav>
+</header>
+<main>
+  <!-- ============ 練習 ============ -->
+  <section id="tab-practice">
+    <div class="card filters">
+      <label>シナリオ <select id="pf-scenario"></select></label>
+      <label>ドメイン <select id="pf-domain"></select></label>
+      <label class="chk"><input type="checkbox" id="pf-unsolved"> 未正解のみ</label>
+      <label>表示
+        <span class="seg" id="pf-lang">
+          <button data-lang="en">EN</button>
+          <button data-lang="ja" class="active">JA</button>
+          <button data-lang="both">EN+JA</button>
+        </span>
+      </label>
+    </div>
+    <div class="progress-line" id="pf-progress"></div>
+    <div id="pf-question"></div>
+  </section>
+
+  <!-- ============ 本番モード ============ -->
+  <section id="tab-mock" hidden>
+    <div id="mk-start"></div>
+    <div id="mk-exam" hidden></div>
+    <div id="mk-result" hidden></div>
+  </section>
+
+  <!-- ============ 履歴 ============ -->
+  <section id="tab-history" hidden>
+    <div class="card" id="hist-box"></div>
+  </section>
+
+  <!-- ============ 使い方 ============ -->
+  <section id="tab-help" hidden>
+    <div class="card">
+      <h3>練習モード</h3>
+      <p class="small muted">シナリオ・ドメインで絞り込み、EN/JA/EN+JA表示を切り替えて1問ずつ解答できます。「未正解のみ」にチェックすると、まだ正解していない問題だけに絞れます。解答すると解説が表示されます。</p>
+    </div>
+    <div class="card">
+      <h3>本番モード</h3>
+      <p class="small muted">60問・120分の本番同等シミュレーションです。終了すると結果画面が表示され、「JSONダウンロード」ボタンで結果ファイルを保存できます。このJSONを開発者に渡すと、弱点ドメインの分析レポートを作成できます。</p>
+    </div>
+    <div class="card">
+      <h3>履歴</h3>
+      <p class="small muted">これまでの本番モードの受験結果一覧と、下部に「コメント（フィードバック）」欄が表示されます。</p>
+    </div>
+    <div class="card">
+      <h3>👤 学習者ごとの記録</h3>
+      <p class="small muted">
+        ヘッダー右上の「👤 学習者」プルダウンで、複数人でこのコンソールを共用できます。<br>
+        「＋ 学習者を追加…」から名前を登録すると、以後その名前を選んでいる間は<br>
+        ・練習モードの正解履歴（「未正解のみ」フィルタの判定）<br>
+        ・本番モードの結果（履歴・ダウンロードするJSON内の <code>user</code> フィールド）<br>
+        ・コメント（誰が書いたか）<br>
+        がすべてその学習者名に紐づいて別々に記録されます。名前を選ばない（「（名前未設定）」のまま）場合は共通の記録として扱われます。<br>
+        <strong>記録はこのブラウザ内（localStorage）にのみ保存されます。</strong>別のPC・別のブラウザ・シークレットモードとは共有されず、ブラウザのデータを消去すると失われるため、本番モードの結果は都度JSONダウンロードして保存することをおすすめします。
+      </p>
+    </div>
+    <div class="card">
+      <h3>💬 問題へのコメント方法</h3>
+      <p class="small muted">
+        練習モードで解答すると表示される解説の下に「💬 この問題にコメント・質問を残す」という折りたたみ欄があります。<br>
+        ここに内容の誤りの指摘・疑問点などを書いて「コメントを保存」を押すと、その問題ID・学習者名・日時とともにブラウザ内に保存されます。<br>
+        保存したコメントは「履歴」タブ下部の「💬 コメント（フィードバック）」欄にまとまって表示され、「JSONエクスポート」ボタンでファイルに書き出せます。<br>
+        書き出したJSONファイルを開発者（江尻）に送ってもらえれば、問題の修正に反映します。「消去」ボタンで保存済みコメントを削除できます（エクスポート後の利用を推奨）。
+      </p>
+    </div>
+  </section>
+</main>
+
+<script>const EXAM_DATA = {"meta":{"title":"CCA-F Original Question Bank","version":"0.3","generated_at":"2026-07-05","include_drafts":false},"scenarios":[{"key":"customer-support","number":1,"name_en":"Customer Support Resolution Agent","name_ja":"カスタマーサポート解決エージェント","context_en":"You are building a customer support resolution agent using the Claude Agent SDK. The agent handles high-ambiguity requests like returns, billing disputes, and account issues. It has access to your backend systems through custom MCP tools (get_customer, lookup_order, process_refund, escalate_to_human). Your target is 80%+ first-contact resolution while knowing when to escalate.","context_ja":"Claude Agent SDK でカスタマーサポート解決エージェントを構築している。返品・請求争議・アカウント問題など曖昧性の高い依頼を扱い、カスタムMCPツール（get_customer, lookup_order, process_refund, escalate_to_human）でバックエンドに接続する。目標は初回解決率80%以上と適切なエスカレーション判断。","primary_domains":[1,2,5]},{"key":"code-generation","number":2,"name_en":"Code Generation with Claude Code","name_ja":"Claude Code によるコード生成","context_en":"You are using Claude Code to accelerate software development. Your team uses it for code generation, refactoring, debugging, and documentation. You need to integrate it into your development workflow with custom slash commands, CLAUDE.md configurations, and understand when to use plan mode vs direct execution.","context_ja":"Claude Code で開発を加速している。コード生成・リファクタ・デバッグ・ドキュメント作成にチームで使い、カスタムスラッシュコマンドや CLAUDE.md 設定でワークフローに統合し、plan mode と直接実行の使い分けを判断する。","primary_domains":[3,5]},{"key":"multi-agent-research","number":3,"name_en":"Multi-Agent Research System","name_ja":"マルチエージェント・リサーチシステム","context_en":"You are building a multi-agent research system using the Claude Agent SDK. A coordinator agent delegates to specialized subagents: one searches the web, one analyzes documents, one synthesizes findings, and one generates reports. The system researches topics and produces comprehensive, cited reports.","context_ja":"Claude Agent SDK でマルチエージェント・リサーチシステムを構築している。コーディネータがWeb検索・文書分析・統合・レポート生成の各サブエージェントに委任し、出典付きの包括的レポートを生成する。","primary_domains":[1,2,5]},{"key":"developer-productivity","number":4,"name_en":"Developer Productivity with Claude","name_ja":"Claude による開発者生産性","context_en":"You are building developer productivity tools using the Claude Agent SDK. The agent helps engineers explore unfamiliar codebases, understand legacy systems, generate boilerplate code, and automate repetitive tasks. It uses the built-in tools (Read, Write, Bash, Grep, Glob) and integrates with MCP servers.","context_ja":"Claude Agent SDK で開発者生産性ツールを構築している。未知のコードベース探索・レガシー理解・ボイラープレート生成・繰り返しタスク自動化を支援し、組み込みツール（Read, Write, Bash, Grep, Glob）とMCPサーバを利用する。","primary_domains":[2,3,1]},{"key":"claude-code-ci","number":5,"name_en":"Claude Code for Continuous Integration","name_ja":"CI への Claude Code 統合","context_en":"You are integrating Claude Code into your CI/CD pipeline. The system runs automated code reviews, generates test cases, and provides feedback on pull requests. You need to design prompts that provide actionable feedback and minimize false positives.","context_ja":"CI/CDパイプラインに Claude Code を統合している。自動コードレビュー・テスト生成・PRフィードバックを行い、実行可能な指摘と偽陽性の最小化を目指すプロンプトを設計する。","primary_domains":[3,4]},{"key":"structured-extraction","number":6,"name_en":"Structured Data Extraction","name_ja":"構造化データ抽出","context_en":"You are building a structured data extraction system using Claude. The system extracts information from unstructured documents, validates the output using JSON schemas, and maintains high accuracy. It must handle edge cases gracefully and integrate with downstream systems.","context_ja":"Claude で構造化データ抽出システムを構築している。非構造化文書から情報を抽出し、JSONスキーマで検証し高精度を維持する。エッジケースを適切に処理し下流システムと統合する。","primary_domains":[4,5]}],"exam_structure":{"questions_total":60,"time_limit_minutes":120,"scenarios_drawn":4,"questions_per_scenario":15,"passing_scaled_score":720,"scaled_score_range":[100,1000]},"domains":[{"id":1,"name_en":"Agentic Architecture & Orchestration","name_ja":"エージェント型アーキテクチャとオーケストレーション","weight":0.27,"task_statements":[{"id":"1.1","title":"Design and implement agentic loops for autonomous task execution","keywords":["stop_reason (tool_use/end_turn)","tool results appended to history","model-driven vs pre-configured decision trees","anti-patterns: text parsing / iteration caps as primary stop"]},{"id":"1.2","title":"Orchestrate multi-agent systems with coordinator-subagent patterns","keywords":["hub-and-spoke","isolated subagent context","task decomposition & aggregation","dynamic subagent selection","scope partitioning to avoid duplication","iterative refinement loops"]},{"id":"1.3","title":"Configure subagent invocation, context passing, and spawning","keywords":["Task tool / allowedTools includes Task","explicit context in prompt (no inheritance)","AgentDefinition","parallel Task calls in one response","fork-based sessions","goals not step-by-step procedures"]},{"id":"1.4","title":"Implement multi-step workflows with enforcement and handoff patterns","keywords":["programmatic prerequisites vs prompt guidance","deterministic compliance (verify before refund)","structured handoff summaries for escalation"]},{"id":"1.5","title":"Apply Agent SDK hooks for tool call interception and data normalization","keywords":["PostToolUse normalization","tool-call interception for policy (e.g. refund > $500)","hooks = deterministic guarantee, prompt = probabilistic"]},{"id":"1.6","title":"Design task decomposition strategies for complex workflows","keywords":["prompt chaining (fixed sequential)","dynamic adaptive decomposition","per-file pass + cross-file integration pass"]},{"id":"1.7","title":"Manage session state, resumption, and forking","keywords":["session resumption","fork_session","named sessions","state persistence / crash recovery manifests"]}]},{"id":2,"name_en":"Tool Design & MCP Integration","name_ja":"ツール設計とMCP統合","weight":0.18,"task_statements":[{"id":"2.1","title":"Design effective tool interfaces with clear descriptions and boundaries","keywords":["description quality drives selection","split vs consolidate tools","naming to reduce ambiguity","boundary conditions"]},{"id":"2.2","title":"Implement structured error responses for MCP tools","keywords":["isError flag","errorCategory transient/validation/permission","isRetryable","never success-with-empty on failure","errors the model can act on"]},{"id":"2.3","title":"Distribute tools appropriately across agents and configure tool choice","keywords":["least privilege per agent","scoped tools (verify_fact)","tool_choice auto/any/forced","over-provisioning risks"]},{"id":"2.4","title":"Integrate MCP servers into Claude Code and agent workflows","keywords":[".mcp.json project scope vs ~/.claude.json user scope","env var expansion for tokens","MCP resources as content catalogs","community servers vs custom"]},{"id":"2.5","title":"Select and apply built-in tools (Read, Write, Edit, Bash, Grep, Glob) effectively","keywords":["Grep=content search","Glob=path patterns","Edit unique-anchor / Read+Write fallback","incremental codebase understanding"]}]},{"id":3,"name_en":"Claude Code Configuration & Workflows","name_ja":"Claude Code の設定とワークフロー","weight":0.2,"task_statements":[{"id":"3.1","title":"Configure CLAUDE.md files with appropriate hierarchy, scoping, and modular organization","keywords":["user/project/directory hierarchy","@import = organization not conditional loading","always-loaded vs on-demand","levels combine and are interpreted together"]},{"id":"3.2","title":"Create and configure custom slash commands and skills","keywords":["SKILL.md frontmatter","argument-hint","allowed-tools (incl. Bash(cmd:*) patterns)","context: fork","$ARGUMENTS / $1 $2","project vs user scope"]},{"id":"3.3","title":"Apply path-specific rules for conditional convention loading","keywords":[".claude/rules/ YAML frontmatter paths globs","noun (file-type) triggers vs verb (task) triggers","rules without paths = always loaded"]},{"id":"3.4","title":"Determine when to use plan mode vs direct execution","keywords":["ambiguous requirements + large architectural divergence → plan mode","established pattern + clear path → direct","scaffolding = implicit commitment, not deferral"]},{"id":"3.5","title":"Apply iterative refinement techniques for progressive improvement","keywords":["input/output examples","test-driven iteration","interview pattern","sequential vs parallel issue resolution"]},{"id":"3.6","title":"Integrate Claude Code into CI/CD pipelines","keywords":["-p/--print headless","--output-format json / --json-schema","--allowedTools pre-approval","blocking vs non-blocking checks"]}]},{"id":4,"name_en":"Prompt Engineering & Structured Output","name_ja":"プロンプトエンジニアリングと構造化出力","weight":0.2,"task_statements":[{"id":"4.1","title":"Design prompts with explicit criteria to improve precision and reduce false positives","keywords":["explicit review criteria","severity definitions","scope restriction","actionable feedback"]},{"id":"4.2","title":"Apply few-shot prompting to improve output consistency and quality","keywords":["target ambiguous cases","format consistency","classification consistency","varied-format examples"]},{"id":"4.3","title":"Enforce structured output using tool use and JSON schemas","keywords":["tool_use for structured output","tool_choice forcing","required vs optional","nullable fields prevent hallucination","enum + other/detail pattern","strict mode"]},{"id":"4.4","title":"Implement validation, retry, and feedback loops for extraction quality","keywords":["validation-retry with the specific error","retryable (format) vs not (absent info)","Pydantic/JSON Schema validation"]},{"id":"4.5","title":"Design efficient batch processing strategies","keywords":["Message Batches API 50% cost / up to 24h / no latency SLA","custom_id correlation","no multi-turn tool calling","latency-tolerance matching"]},{"id":"4.6","title":"Design multi-instance and multi-pass review architectures","keywords":["attention dilution → focused passes","per-file pass + integration pass","multi-instance verification","consensus suppresses intermittent detections"]}]},{"id":5,"name_en":"Context Management & Reliability","name_ja":"コンテキスト管理と信頼性","weight":0.15,"task_statements":[{"id":"5.1","title":"Manage conversation context to preserve critical information across long interactions","keywords":["lost-in-the-middle","position-aware ordering (edges)","structured fact extraction during summarization","/compact is lossy","scratchpad files"]},{"id":"5.2","title":"Design effective escalation and ambiguity resolution patterns","keywords":["explicit escalation criteria","policy gaps","honor customer preference","clarify vs assume"]},{"id":"5.3","title":"Implement error propagation strategies across multi-agent systems","keywords":["structured error context to coordinator","partial results + coverage-gap annotation","never mark failure as success","local recovery before escalation"]},{"id":"5.4","title":"Manage context effectively in large codebase exploration","keywords":["Explore subagent isolates verbose output","summary-only return","token budgets","trimming verbose tool outputs"]},{"id":"5.5","title":"Design human review workflows and confidence calibration","keywords":["field-level confidence scores","confidence-based routing","calibration with labeled sets","stratified sampling","accuracy segmentation"]},{"id":"5.6","title":"Preserve information provenance and handle uncertainty in multi-source synthesis","keywords":["claim-source mappings","conflict annotation with attribution (not arbitrary selection)","temporal data (publication dates)","contested vs established findings"]}]}],"questions":[{"id":"S1-D1-001","scenario":"customer-support","domain":1,"task_statement":"1.1","question_en":"Your support agent's loop terminates when the assistant's text contains the phrase \"issue resolved\". In production, some sessions run tools indefinitely even after the customer's problem is fixed, while others stop before calling escalate_to_human even though the model intended to. What is the most reliable fix?","question_ja":"サポートエージェントのループは、アシスタントのテキストに \"issue resolved\" という語句が含まれたら終了する実装になっている。本番では、問題解決後もツールを呼び続けるセッションがある一方、モデルが escalate_to_human を呼ぶつもりだったのに手前で停止するセッションもある。最も信頼できる修正はどれか。","options_en":{"A":"Add a maximum iteration cap of 10 tool calls per session as the primary stopping condition, with an alert when the cap is reached","B":"Drive the loop from stop_reason: continue executing tools while it is \"tool_use\" and terminate when it is \"end_turn\"","C":"Expand the completion-phrase list with variants like \"resolved\", \"all done\", and \"completed\" and match them case-insensitively","D":"Instruct the model in the system prompt to always end its final message with the exact marker string [DONE]"},"options_ja":{"A":"1セッションあたり最大10回のツール呼び出し上限を主たる停止条件として追加し、上限到達時にアラートを出す","B":"ループを stop_reason で制御する。\"tool_use\" の間はツールを実行し続け、\"end_turn\" になったら終了する","C":"完了フレーズのリストを \"resolved\" \"all done\" \"completed\" などのバリエーションに拡張し、大文字小文字を無視して照合する","D":"システムプロンプトで、最後のメッセージを必ず正確なマーカー文字列 [DONE] で終えるようモデルに指示する"},"correct":"B","explanation_ja":{"why_correct":"エージェントループの終了判定は API が返す stop_reason で行うのが公式の設計。\"tool_use\" は「ツールを実行して結果を返せ」、\"end_turn\" は「モデルのターン完了」を意味する決定論的なシグナルで、自然言語の揺らぎに依存しない。両方の症状（止まらない／早すぎる停止）は、テキスト解析という確率的な判定を使っていることが根本原因。","A":"回数上限は暴走の安全網にはなるが主たる停止条件ではない。正常に9回で終わるべきセッションを歪め、3回で終わるべきものは7回無駄に回る。根本原因（判定方法）を直していない。","C":"フレーズリストの拡張は同じ誤りの精緻化にすぎない。モデルの言い回しは無限に変わりうるので、テキスト照合は本質的に確率的なまま。","D":"プロンプト指示は確率的で、マーカーを忘れる／途中で出すケースが残る。保証が必要な制御をプロンプトに頼るのは \"code must, prompt should\" の原則違反。"},"references":[{"title":"Handling stop reasons","url":"https://platform.claude.com/docs/en/api/handling-stop-reasons"}],"lesson":"ループ終了の保証が要件なら stop_reason（決定論）で判定する。テキスト解析・回数上限を主判定にしない","principle_tags":["deterministic-termination","code-must-prompt-should"],"difficulty":"standard","source":"original","review":{"agent":"2026-07-04","codex":"2026-07-04"},"status":"reviewed"},{"id":"S1-D1-002","scenario":"customer-support","domain":1,"task_statement":"1.5","question_en":"Your support agent is built with the Claude Agent SDK. Company policy requires human approval for any refund above $200. Your system prompt states this rule prominently, yet audit logs show the agent processed a $340 refund directly last week. The compliance team says this must never happen again. What should you implement?","question_ja":"サポートエージェントは Claude Agent SDK で構築されている。会社のポリシーでは200ドルを超える返金には人間の承認が必須である。システムプロンプトにはこのルールが目立つ形で書かれているが、監査ログによると先週エージェントが340ドルの返金を直接処理していた。コンプライアンスチームは「二度と起こしてはならない」としている。何を実装すべきか。","options_en":{"A":"Rewrite the rule in the system prompt using stronger, unambiguous language and repeat it immediately before the tool definitions","B":"Add few-shot examples to the prompt showing the agent correctly escalating refunds of $250, $500, and $1,000 to a human","C":"Log every process_refund call to a dashboard and have the support team review flagged transactions each morning","D":"Add a hook that intercepts process_refund calls, blocks any amount above $200, and returns feedback directing the agent to escalate_to_human"},"options_ja":{"A":"システムプロンプトのルールをより強く曖昧さのない表現に書き直し、ツール定義の直前でも繰り返す","B":"250ドル・500ドル・1,000ドルの返金を正しく人間にエスカレーションする few-shot 例をプロンプトに追加する","C":"すべての process_refund 呼び出しをダッシュボードに記録し、サポートチームが毎朝フラグ付き取引をレビューする","D":"process_refund の呼び出しをインターセプトするフックで200ドル超を拒否し、escalate_to_human を使うよう理由をモデルに返す"},"correct":"D","explanation_ja":{"why_correct":"「must never happen（絶対に起こしてはならない）」は保証の要件。プロンプト指示はどれだけ強くても確率的で失敗率が非ゼロのまま。ツール呼び出しをコードでインターセプトして閾値超過を拒否するフック（PreToolUse の deny）だけが決定論的な保証を与える。拒否理由をモデルに返せば、モデルはそれを読んで escalate_to_human へ進む。","A":"表現強化もプロンプト内の位置変更も確率を改善するだけで、保証にはならない。既に「目立つ形で」書かれていたのに突破された事実がそれを示している。","B":"few-shot は遵守率を上げる有効な手法だが、依然として確率的。コンプライアンス要件（ゼロ違反）には不十分。","C":"事後検出であり、340ドルの返金は実行されてしまった後。予防の要件を満たさない症状対処。"},"references":[{"title":"Agent SDK: Hooks","url":"https://code.claude.com/docs/en/agent-sdk/hooks"},{"title":"Claude Code: Hooks","url":"https://code.claude.com/docs/en/hooks"}],"lesson":"ビジネスルールの保証が要件なら、ツール呼び出しインターセプトのフックで遮断する（prompt は推奨まで）","principle_tags":["code-must-prompt-should","root-cause-fix"],"difficulty":"standard","source":"original","review":{"agent":"2026-07-04","codex":"2026-07-04"},"status":"reviewed"},{"id":"S1-D1-003","scenario":"customer-support","domain":1,"task_statement":"1.5","question_en":"Your agent uses three MCP tools built by different backend teams: get_customer returns dates as Unix timestamps, lookup_order returns ISO 8601 strings, and the billing tool returns numeric status codes (0, 1, 2) without labels. The agent occasionally mixes up order chronology when comparing dates across tools. The three backend APIs also serve other products and have no format changes on their roadmap; what you control is your agent's configuration. Where should you address this?","question_ja":"エージェントは別々のバックエンドチームが作った3つのMCPツールを使う。get_customer は日付を Unix タイムスタンプで、lookup_order は ISO 8601 文字列で返し、請求ツールはラベルなしの数値ステータスコード（0, 1, 2）を返す。ツールをまたいで日付を比較するとき、エージェントが時系列を取り違えることがある。3つのバックエンドAPIは他プロダクトでも使われており形式変更のロードマップはない。あなたが変更できるのは自エージェントの構成だけである。どこで対処すべきか。","options_en":{"A":"In a PostToolUse hook that normalizes timestamps and status codes to one consistent format before the model processes the results","B":"In the system prompt, by documenting each tool's date format and status code meanings so the model can convert between them","C":"In each backend service, by asking the three teams to migrate their APIs to a shared date and status format standard","D":"In the agent loop, by adding a dedicated convert_formats tool the model can call whenever it needs to compare values across tools"},"options_ja":{"A":"PostToolUse フックで、モデルが結果を処理する前にタイムスタンプとステータスコードを一貫した形式に正規化する","B":"システムプロンプトに各ツールの日付形式とステータスコードの意味を記載し、モデルが相互変換できるようにする","C":"3チームに依頼して、各バックエンドサービスのAPIを共通の日付・ステータス形式標準へ移行してもらう","D":"エージェントループに専用の convert_formats ツールを追加し、ツール間で値を比較するたびにモデルに呼ばせる"},"correct":"A","explanation_ja":{"why_correct":"異種データの正規化は PostToolUse フックの代表的用途。ツール結果がモデルに渡る前にコードで決定論的に変換するため、モデルの変換ミス（今回の症状）が構造的に起きなくなる。バックエンドに変更を求めず、自分の制御範囲で確実に解決できる。（Agent SDK では PostToolUse フックの updatedToolOutput でモデルに渡る前のツール出力を差し替えられる）","B":"モデルに毎回変換させるのは確率的で、まさに現在の「ときどき取り違える」を温存する。トークンも消費する。","C":"前提で明確に排除されている選択肢。3チームのAPIは他プロダクトも使い形式変更の予定はなく、自分の制御範囲は自エージェントの構成のみ。組織的変更で技術的問題に応える合わない経路でもある。","D":"変換ツールを「呼ぶかどうか」がモデル任せになり、呼び忘れれば同じバグが出る。往復も増える。保証したい変換を確率的な判断に委ねている。"},"references":[{"title":"Agent SDK: Hooks","url":"https://code.claude.com/docs/en/agent-sdk/hooks"}],"lesson":"異種フォーマットの正規化は PostToolUse フックでモデルに渡る前に行う（モデル変換は確率的）","principle_tags":["code-must-prompt-should","root-cause-fix"],"difficulty":"standard","source":"original","review":{"agent":"2026-07-04","codex":"2026-07-04"},"status":"reviewed"},{"id":"S1-D1-004","scenario":"customer-support","domain":1,"task_statement":"1.6","question_en":"A customer writes: \"I was double-charged for order #1123, my new card was declined when I tried to update it, and also — does my plan include weekend support?\" Your agent refunds the double charge and ends the conversation. Review shows this pattern: multi-concern messages get only the first concern handled, hurting your 80% first-contact resolution target. What is the most effective change?","question_ja":"顧客からのメッセージ:「注文#1123 が二重請求されていて、カードを更新しようとしたら新しいカードが拒否されました。あと、私のプランに週末サポートは含まれますか？」エージェントは二重請求を返金して会話を終了した。レビューの結果、複数の関心事を含むメッセージは最初の1件しか処理されないパターンが判明し、初回解決率80%目標を損なっている。最も効果的な変更はどれか。","options_en":{"A":"Route each detected concern to a separate conversation session so every issue gets a dedicated context window","B":"Instruct the agent to always ask the customer which single issue they would like to prioritize before taking any action","C":"Increase max_tokens for the final response so the agent has room to address every topic the customer raised","D":"Decompose the message into distinct concerns, investigate each in shared context, then synthesize one unified resolution"},"options_ja":{"A":"検出した関心事ごとに別々の会話セッションへルーティングし、各問題に専用のコンテキストウィンドウを与える","B":"行動を起こす前に、どの問題を優先したいか顧客に必ず1つ選んでもらうようエージェントに指示する","C":"最終応答の max_tokens を増やし、顧客が挙げたすべてのトピックに触れる余裕を持たせる","D":"メッセージを個別の関心事に分解し、共有コンテキスト内でそれぞれを調査してから、1つの統合された解決策として合成する"},"correct":"D","explanation_ja":{"why_correct":"公式ガイドが示す複数関心事への標準パターン。①分解（3つの独立した問題として列挙）②各項目を調査（同一顧客・同一注文の文脈を共有したまま）③統合応答。関心事同士は関連しうる（二重請求とカード拒否は同じ請求システム）ので、共有コンテキストでの調査が精度も効率も高い。","A":"セッション分割は文脈の共有を壊す。カード拒否の調査に二重請求の調査結果が使えなくなり、顧客は3つの会話を強いられる。過剰な隔離。","B":"顧客に選ばせるのは初回解決率をむしろ下げる（残り2件は未解決のまま）。エージェント側の処理能力の問題を顧客に転嫁している。","C":"max_tokens は応答の長さの上限であって、調査行動を変えない。根本原因（1件目だけ処理して終了する行動パターン）に触れていない症状対処。"},"references":[{"title":"Building effective agents","url":"https://www.anthropic.com/research/building-effective-agents"}],"lesson":"複数関心事は「分解→共有コンテキストで各個調査→統合応答」。セッション分割でも顧客への転嫁でもない","principle_tags":["root-cause-fix","explicit-context-passing"],"difficulty":"standard","source":"original","review":{"agent":"2026-07-04","codex":"2026-07-04"},"status":"reviewed"},{"id":"S1-D1-005","scenario":"customer-support","domain":1,"task_statement":"1.7","question_en":"Customers often return the next day to continue an open case. Your agent is built on the Claude API, and each new session starts with no knowledge of prior interactions. A teammate suggests: \"The API keeps conversation history server-side, so just reuse the same conversation.\" How should you design continuity?","question_ja":"顧客は翌日に戻ってきて未解決のケースを続けることが多い。エージェントは Claude API 上に構築されており、新しいセッションは過去のやり取りを知らない状態で始まる。同僚は「APIがサーバ側で会話履歴を保持しているから、同じ会話を再利用すればいい」と提案している。継続性をどう設計すべきか。","options_en":{"A":"Accept the suggestion: pass the previous conversation ID in the next request so the API restores the full message history","B":"Persist case state — customer ID, issue status, actions taken, commitments — and inject that summary when the case resumes","C":"Store the complete raw transcript of every session and prepend all of it, unmodified, to the context each time the customer returns","D":"Ask returning customers to briefly re-describe their issue so the agent can rebuild context from their own words"},"options_ja":{"A":"提案を受け入れる。次のリクエストで前回の会話IDを渡せば、APIがメッセージ履歴全体を復元してくれる","B":"ケース状態（顧客ID・問題ステータス・実施済みアクション・約束事項）を自前で永続化し、ケース再開時にその構造化サマリーを注入する","C":"全セッションの生トランスクリプトを保存し、顧客が戻るたびにそのすべてを無加工でコンテキスト先頭に付加する","D":"戻ってきた顧客に問題を簡単に再説明してもらい、顧客自身の言葉からエージェントが文脈を再構築する"},"correct":"B","explanation_ja":{"why_correct":"Claude API はステートレスで、サーバ側に会話状態は保持されない。継続性はアプリケーション側の責務。重要事実を構造化して永続化し再開時に注入する設計は、トークン効率が良く、lost-in-the-middle の影響も受けにくい。前提（同僚の誤解）を正すことが決め手。","A":"前提が誤り。Messages API に「会話IDで履歴復元」という仕組みはなく、毎リクエストで全メッセージを送るのはクライアントの責務。","C":"動くが劣化する。ケースが長引くほどコンテキストが肥大し、コストが増え、重要事実が中間に埋もれて見落とされる（lost-in-the-middle）。","D":"顧客体験を損ない（同じ説明の繰り返し）、実施済みアクションや約束事項など顧客が知らない内部状態は復元できない。"},"references":[{"title":"Context windows","url":"https://docs.claude.com/en/docs/build-with-claude/context-windows"}],"lesson":"API はステートレス。会話の継続性はアプリ側が構造化状態の永続化＋再注入で担う","principle_tags":["explicit-context-passing","position-aware-context"],"difficulty":"standard","source":"original","review":{"agent":"2026-07-04","codex":"2026-07-04"},"status":"reviewed"},{"id":"S1-D1-006","scenario":"customer-support","domain":1,"task_statement":"1.4","question_en":"When your agent escalates a billing dispute, it calls escalate_to_human with the message \"Customer needs help with billing.\" Human agents, whose ticketing tool does not automatically surface the AI conversation log, report spending 10+ minutes re-interviewing each escalated customer. What should the escalation include?","question_ja":"エージェントが請求争議をエスカレーションするとき、escalate_to_human を「顧客が請求の件でサポートを必要としています」というメッセージで呼んでいる。オペレーターのチケットツールにはAIの会話ログが自動連携されておらず、人間のオペレーターからエスカレーションされた顧客への再ヒアリングに毎回10分以上かかるという報告が上がっている。エスカレーションには何を含めるべきか。","options_en":{"A":"A link to the full conversation transcript so the human agent can read through everything the customer and AI discussed","B":"The customer's account tier and contact details, so the human agent can call them back at a convenient time","C":"A structured handoff: customer ID, known facts, suspected cause, actions attempted, and a recommended next action","D":"The customer's own words from their most recent message, quoted verbatim to preserve their emotional tone"},"options_ja":{"A":"会話トランスクリプト全文へのリンク。顧客とAIが話したすべてを人間のオペレーターが読めるようにする","B":"顧客のアカウント階層と連絡先。オペレーターが都合の良い時間に折り返せるようにする","C":"構造化された引き継ぎサマリー: 顧客ID・確定事実と推定原因・実施済みアクション・推奨される次のアクション","D":"顧客の直近メッセージの原文引用。感情的なトーンをそのまま保持する"},"correct":"C","explanation_ja":{"why_correct":"公式ガイドの構造化ハンドオフプロトコル。トランスクリプトに即アクセスできない人間が業務を引き継ぐには、要約済みの構造化情報（誰が・確定した事実・原因の推定（未確定なら未確定と明示）・何を試したか・次に何をすべきか）が必要。再ヒアリング10分の根本原因は「情報がない」ことではなく「使える形の情報がない」こと。確定事実と推定を区別することで、要約が捏造を誘発するのも防げる。","A":"全文を読むのは10分の再ヒアリングを10分の読解に置き換えるだけ。長い対話ほど読む時間が増え、要点抽出の負担をオペレーターに転嫁する。","B":"連絡先は引き継ぎの前提情報にすぎず、ケースの中身（原因・経緯）が何も伝わらない。再ヒアリングは減らない。","D":"感情トーンの保持は補助的には有用だが、直近メッセージだけでは経緯・実施済みアクションが欠落し、二重対応（同じ操作の再実行）のリスクもある。"},"references":[{"title":"Building effective agents","url":"https://www.anthropic.com/research/building-effective-agents"}],"lesson":"エスカレーションは構造化ハンドオフ（顧客ID・根本原因・実施済み・推奨アクション）で。転送先が読める形に要約するのは送り手の責務","principle_tags":["escalate-with-handoff","structured-errors"],"difficulty":"standard","source":"original","review":{"agent":"2026-07-04","codex":"2026-07-04"},"status":"reviewed"},{"id":"S1-D2-001","scenario":"customer-support","domain":2,"task_statement":"2.1","question_en":"Your agent has two order tools: lookup_order (fetches one order by order ID) and search_orders (finds orders by customer ID and date range). Logs show that when customers mention an order number, the agent calls search_orders about 30% of the time, scanning date ranges unnecessarily. Both tool descriptions currently read \"Retrieves order information.\" What is the best fix?","question_ja":"エージェントには2つの注文ツールがある。lookup_order（注文IDで1件取得）と search_orders（顧客IDと日付範囲で検索）。ログによると、顧客が注文番号を伝えているのに約30%のケースで search_orders が呼ばれ、不要な日付範囲スキャンが起きている。現在、両ツールの description はどちらも「注文情報を取得します」となっている。最善の修正はどれか。","options_en":{"A":"Rewrite both descriptions to state each tool's distinct purpose, required inputs, and when to prefer it over the other","B":"Merge the two tools into a single get_orders tool with optional parameters for order ID, customer ID, and date range","C":"Add a system prompt rule: \"If the customer provides an order number, you must always call lookup_order first\"","D":"Remove search_orders so the agent has no choice, and handle date-range searches through human escalation instead"},"options_ja":{"A":"両方の description を書き直し、各ツールの明確な用途・必要な入力・どちらを優先すべき状況を記載する","B":"2つのツールを1つの get_orders ツールに統合し、注文ID・顧客ID・日付範囲をオプションパラメータにする","C":"システムプロンプトに「顧客が注文番号を提示したら必ず先に lookup_order を呼ぶこと」というルールを追加する","D":"search_orders を削除して選択の余地をなくし、日付範囲の検索は人間へのエスカレーションで対応する"},"correct":"A","explanation_ja":{"why_correct":"ツール選択はモデルが description を読んで行う。同一文言の description が誤選択30%の根本原因であり、用途・入力・使い分け条件を明記するのが公式に推奨される第一の対処。ツール記述の品質はエージェントの信頼性に直結する。","B":"統合はオプションパラメータの組み合わせ爆発を招き、「どのパラメータをいつ使うか」という同じ曖昧さがツール内部に移動するだけ。単一責務の原則にも反する。","C":"プロンプトルールは description の欠陥を上から補う症状対処。ルールが増えるほどプロンプトが肥大し、根本（ツール自身が自分を説明していない）は残る。descriptionを直せば不要な層。","D":"能力の削除はやりすぎ。正当な日付範囲検索のユースケースを人間に転嫁し、初回解決率を下げる。"},"references":[{"title":"Tool use overview","url":"https://docs.claude.com/en/docs/agents-and-tools/tool-use/overview"},{"title":"Writing effective tool descriptions","url":"https://www.anthropic.com/engineering/writing-tools-for-agents"}],"lesson":"ツール誤選択の第一の疑い先は description。用途・入力・使い分けをツール自身に語らせる","principle_tags":["single-responsibility","root-cause-fix"],"difficulty":"standard","source":"original","review":{"agent":"2026-07-04","codex":"2026-07-04"},"status":"reviewed"},{"id":"S1-D2-002","scenario":"customer-support","domain":2,"task_statement":"2.2","question_en":"During a database outage, lookup_order returns an empty array. Your agent then tells customers \"I couldn't find any orders on your account,\" which is factually wrong and has triggered several angry follow-ups. How should the tool behave during backend failures?","question_ja":"データベース障害の間、lookup_order は空配列を返す。その結果エージェントは顧客に「お客様のアカウントに注文は見つかりませんでした」と伝えてしまい、事実と異なる案内として複数の苦情を招いた。バックエンド障害時、ツールはどう振る舞うべきか。","options_en":{"A":"Return an empty result but append a note field saying \"database may be unavailable\" for the agent to consider","B":"Retry internally with exponential backoff until the database recovers, then return the real result to the agent","C":"Return a structured error (isError, transient category, retryable flag) so the agent can retry or inform the customer","D":"Cache all order data nightly and serve from the cache whenever the primary database fails to respond"},"options_ja":{"A":"空の結果を返しつつ、「データベースが利用できない可能性があります」という note フィールドを付けてエージェントに考慮させる","B":"データベースが復旧するまでツール内部で指数バックオフ付きリトライを続け、復旧後に本当の結果をエージェントに返す","C":"明示的な構造化エラー（isError＋transient カテゴリ＋retryable フラグ）を返し、エージェントがリトライするか顧客に正直に伝えられるようにする","D":"全注文データを毎晩キャッシュし、プライマリデータベースが応答しないときはキャッシュから提供する"},"correct":"C","explanation_ja":{"why_correct":"「障害」と「結果ゼロ件」は意味が違うのに、空配列は両者を区別不能にする——これが誤案内の根本原因。MCP 仕様の isError フラグで「これはエラーである」ことを明示し、さらに content 内にエラーカテゴリ（transient/validation/permission）や retryable といった行動可能な情報を持たせれば、モデルは「一時障害だからリトライ／正直に状況を伝える」という判断ができる。なおカテゴリ・retryable は MCP 仕様のフィールドではなく、推奨される設計慣習である点に注意。","A":"成功扱いのまま注記を足す折衷案は、モデルが note を無視して空結果を信じるリスクを残す。エラーはエラーとして返すのが原則。","B":"障害が長引けばツール呼び出しがブロックし続け、顧客は無応答のまま待たされる。タイムアウトの問題を悪化させ、エージェントに判断機会を与えない。","D":"キャッシュは可用性向上策としてはあり得るが、返金・請求争議を扱うエージェントに古い注文データを見せるのは誤対応の温床。今回の「誤案内」問題への答えになっていない。"},"references":[{"title":"MCP: Tools (isError)","url":"https://modelcontextprotocol.io/docs/concepts/tools"}],"lesson":"失敗を空結果・成功で偽装しない。構造化エラー（カテゴリ＋retryable）でモデルに行動可能な情報を渡す","principle_tags":["structured-errors","nullable-over-hallucination"],"difficulty":"standard","source":"original","review":{"agent":"2026-07-04","codex":"2026-07-04"},"status":"reviewed"},{"id":"S1-D2-003","scenario":"customer-support","domain":2,"task_statement":"2.3","question_en":"Compliance requires that every support conversation begins with identity verification via get_customer before any other tool runs. Your system prompt says so, but traces show the agent occasionally jumps straight to lookup_order when the customer opens with an order number. The session already has the authenticated customer handle that get_customer requires. What is the most reliable way to enforce the verification-first requirement on the first turn?","question_ja":"コンプライアンス上、すべてのサポート会話は他のツールより先に get_customer による本人確認から始めなければならない。システムプロンプトにはそう書いてあるが、トレースを見ると、顧客が注文番号から会話を始めた場合にエージェントが直接 lookup_order へ飛ぶことがある。セッションには get_customer が必要とする認証済みの顧客ハンドルが既にある。最初のターンで「本人確認が先」を強制する最も信頼できる方法はどれか。","options_en":{"A":"Move the verification instruction to the very top of the system prompt and mark it as the highest-priority rule","B":"List get_customer first in the tools array so the model encounters it before the other tool definitions","C":"Add few-shot examples showing conversations that correctly start with get_customer before any lookup","D":"Use tool_choice to force get_customer on the first turn, then switch back to automatic tool selection afterwards"},"options_ja":{"A":"本人確認の指示をシステムプロンプトの最上部へ移動し、最優先ルールであると明記する","B":"tools 配列の先頭に get_customer を置き、モデルが他のツール定義より先に目にするようにする","C":"どの会話でも lookup の前に get_customer から正しく始める few-shot 例を追加する","D":"最初のターンは tool_choice で get_customer を強制し、その後は自動のツール選択に切り替える"},"correct":"D","explanation_ja":{"why_correct":"tool_choice で特定ツールを強制すれば、最初のターンで get_customer が呼ばれることが API レベルで保証される。以降は auto に戻して通常の判断に任せればよい。「必ず」が要件のときにプロンプトの工夫で応えるのは確率的で、コードで強制できる手段（tool_choice）があるならそれを使う。（forced tool use が利用できるモデル・設定であることが前提。拡張思考との併用など一部構成では強制指定に制約がある）","A":"位置と強調は遵守率を上げるが保証しない。すでにプロンプトに書いてあって破られているのだから、同種の対策の強化では要件を満たせない。","B":"ツールの列挙順はモデルの選択を保証する仕組みではない。挙動が変わったとしても偶発的で、コンプライアンス要件の根拠にできない。","C":"few-shot は精度向上には有効だが確率的。「occasionally 飛ぶ」を「まれに飛ぶ」に減らすだけで、ゼロにはできない。"},"references":[{"title":"Tool use: forcing tool choice","url":"https://docs.claude.com/en/docs/agents-and-tools/tool-use/implement-tool-use"}],"lesson":"「最初に必ずこのツール」は tool_choice の強制で API レベルの保証にする","principle_tags":["code-must-prompt-should","least-privilege"],"difficulty":"hard","source":"original","review":{"agent":"2026-07-04","codex":"2026-07-04"},"status":"reviewed"},{"id":"S1-D2-004","scenario":"customer-support","domain":2,"task_statement":"2.4","question_en":"Your five-person team shares the support agent's MCP server configuration. Each developer has a personal API token for the staging backend. One teammate committed a config with his token hardcoded, which security flagged. How should the team configure the MCP server?","question_ja":"5人のチームでサポートエージェントのMCPサーバ設定を共有している。各開発者はステージング用バックエンドの個人APIトークンを持っている。あるメンバーがトークンをハードコードした設定をコミットしてしまい、セキュリティ部門に指摘された。チームはMCPサーバをどう設定すべきか。","options_en":{"A":"Define the server once in project-scoped .mcp.json with environment variable expansion, so each developer supplies their token via their own environment","B":"Have each developer register the server privately in user-scoped configuration with their token, keeping all MCP setup out of the repository","C":"Store one shared service token in the repository's CI secrets and have all developers use that token for local development","D":"Keep the token in .mcp.json but add the file to .gitignore so each developer maintains an uncommitted local copy of the full config"},"options_ja":{"A":"プロジェクトスコープの .mcp.json にサーバを一度だけ定義し、環境変数展開を使って各開発者が自分の環境からトークンを供給する","B":"各開発者がユーザースコープの設定に自分のトークンでサーバを個別登録し、MCP設定を一切リポジトリに置かない","C":"共有のサービストークンを1つ CI のシークレットに保存し、全開発者がローカル開発でもそのトークンを使う","D":".mcp.json にトークンを残したまま .gitignore に追加し、各開発者がコミットされないローカルコピーで全設定を管理する"},"correct":"A","explanation_ja":{"why_correct":"チーム共有のサーバ定義はプロジェクトスコープの .mcp.json に置き、秘密情報は環境変数展開（${VAR} 形式）で外出しするのが公式パターン。設定は1箇所でバージョン管理され、トークンは各人の環境に留まる——「共有すべきもの」と「個人の秘密」を正しい層に分離している。","B":"秘密は守れるがサーバ定義の共有をやめてしまう。5人がそれぞれ設定を複製し、サーバ更新のたびに5箇所で手動同期（ドリフトの温床）。ユーザースコープは個人的・実験的サーバの置き場。","C":"トークン共有は監査不能（誰の操作か区別できない）で、漏洩時の影響も全員分。個人トークンがある前提を無視している。","D":"設定全体が非管理になり、新メンバーはコピー元を人づてに探すことになる。環境変数展開という正攻法があるのに設定ごと隠すのは過剰。"},"references":[{"title":"Claude Code: MCP","url":"https://code.claude.com/docs/en/mcp"}],"lesson":"共有するのはサーバ定義（プロジェクト .mcp.json）、隠すのは秘密（環境変数展開）。層を分ける","principle_tags":["least-privilege","single-responsibility"],"difficulty":"standard","source":"original","review":{"agent":"2026-07-04","codex":"2026-07-04"},"status":"reviewed"},{"id":"S1-D5-001","scenario":"customer-support","domain":5,"task_statement":"5.1","question_en":"In a 40-turn billing dispute, the customer and agent agreed at turn 8 that the disputed amount was $127.50. At turn 35, the agent asks the customer to confirm the amount again, and the customer complains about repeating themselves. The conversation history was periodically summarized to stay within budget. What most likely went wrong, and what is the fix?","question_ja":"40ターンに及ぶ請求争議で、8ターン目に顧客とエージェントは争議額が127.50ドルであることに合意した。ところが35ターン目にエージェントが再度金額の確認を求め、顧客は「同じことを何度も言わせるのか」と苦情を述べた。会話履歴は予算内に収めるため定期的に要約されていた。最も可能性の高い原因と修正はどれか。","options_en":{"A":"The summarization ran too often; reduce its frequency so more of the raw conversation survives in the window","B":"The model's context window is too small for 40 turns; switch to a model variant with a larger context window","C":"The customer's confirmation was ambiguous at turn 8; require customers to restate key figures in a fixed format the agent can parse","D":"The agreed amount sat mid-conversation and was lost in summarization; extract key facts into a structured record summaries preserve"},"options_ja":{"A":"要約の実行頻度が高すぎた。頻度を下げて、生の会話がより多くウィンドウ内に残るようにする","B":"40ターンにはモデルのコンテキストウィンドウが小さすぎる。より大きなウィンドウを持つモデルに切り替える","C":"8ターン目の顧客の確認が曖昧だった。重要な数字はエージェントが解析できる固定形式で言い直してもらうようにする","D":"合意額が会話の中盤にあり要約時に失われた。重要事実を構造化レコードに抽出し、どの要約でも必ず保持されるようにする"},"correct":"D","explanation_ja":{"why_correct":"中盤の情報は要約・長文コンテキストの両方で失われやすい（lost-in-the-middle）。争議額のようなクリティカルな事実は、非可逆な要約に運命を委ねず、構造化された事実レコード（金額・合意事項・約束）として抽出し、要約とは別に常時保持するのが定石。","A":"頻度を下げても要約が走った瞬間に同じ喪失が起きうる。何を保持するかを制御しない限り、いつ要約するかの調整は運任せ。","B":"ウィンドウ拡大は要約による情報喪失という原因に無関係（要約は予算方針で走っている）。大きいウィンドウでも中間位置の注意低下は残る。","C":"顧客側の入力形式の問題ではない（8ターン目には正しく合意できている）。原因の取り違えで、顧客体験も悪化する。"},"references":[{"title":"Context windows","url":"https://docs.claude.com/en/docs/build-with-claude/context-windows"},{"title":"Effective context engineering for AI agents","url":"https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents"}],"lesson":"クリティカルな事実は要約に委ねず、構造化抽出して要約横断で保持する（lost-in-the-middle対策）","principle_tags":["position-aware-context","root-cause-fix"],"difficulty":"standard","source":"original","review":{"agent":"2026-07-04","codex":"2026-07-04"},"status":"reviewed"},{"id":"S1-D5-002","scenario":"customer-support","domain":5,"task_statement":"5.2","question_en":"A customer writes, \"This is the third time I'm contacting you. I just want to talk to a person.\" The CRM shows the two prior contacts and their outcomes. Your agent, optimized for the 80% first-contact resolution target, responds by asking diagnostic questions about the underlying issue. The customer abandons the chat. How should the agent have handled this?","question_ja":"顧客が「連絡するのはこれで3回目です。人間と話したいだけなんです」と書いてきた。CRMには過去2回の接触とその結果が記録されている。初回解決率80%目標に最適化されたエージェントは、根本の問題について診断的な質問を返した。顧客はチャットを離脱した。エージェントはどう対応すべきだったか。","options_en":{"A":"Continue diagnosing but acknowledge the frustration first, since resolving the issue in-chat still serves the customer fastest","B":"Honor the explicit request and escalate to a human immediately, with a structured summary of the three prior contacts","C":"Offer the customer a choice: continue with the agent for an instant answer, or wait in the queue for a human representative","D":"Escalate only after one more resolution attempt, so the first-contact resolution metric is not sacrificed unnecessarily"},"options_ja":{"A":"まず不満への共感を示した上で診断を続ける。チャット内で解決するのが結局は顧客にとって最速だから","B":"明示的な要望を尊重して直ちに人間へエスカレーションする。過去3回の接触の構造化サマリーを添えて","C":"顧客に選択肢を提示する。エージェントと続けて即答を得るか、人間の担当者の順番を待つか","D":"もう1回だけ解決を試みてからエスカレーションする。初回解決率の指標を不必要に犠牲にしないため"},"correct":"B","explanation_ja":{"why_correct":"「人間と話したい」という明示的な顧客の要望はエスカレーション基準の最上位に置くべき条件。3回目の接触という文脈は、これ以上の自動対応の試行が離脱リスクでしかないことを示す。エスカレーション時は過去の経緯の構造化サマリーを添えて、顧客に4度目の説明をさせないことまで含めて正解。","A":"共感の言葉を足しても要望を無視している構図は変わらない。指標のために顧客の意思を上書きする設計は、まさに今回の離脱を生んだ行動。","C":"既に明確な選択を表明した顧客に選択肢を再提示するのは、遠回しな引き止め。3回目の接触では侮辱的にすら受け取られる。","D":"「もう1回だけ」は指標を顧客より優先する発想。explicit request があった時点で試行の追加は逆効果。"},"references":[{"title":"Building effective agents","url":"https://www.anthropic.com/research/building-effective-agents"}],"lesson":"顧客の明示的なエスカレーション要望は指標より優先。経緯サマリー付きで即時ハンドオフ","principle_tags":["escalate-with-handoff"],"difficulty":"standard","source":"original","review":{"agent":"2026-07-04","codex":"2026-07-04"},"status":"reviewed"},{"id":"S1-D5-003","scenario":"customer-support","domain":5,"task_statement":"5.3","question_en":"Your resolution flow processes a refund, then calls send_confirmation to email the customer. Last month, the email service failed for two days; refunds went through but no confirmations were sent. The agent reported \"refund completed and confirmation sent\" every time, and support was flooded with \"did my refund happen?\" tickets. What is the right design change?","question_ja":"解決フローは返金を処理した後、send_confirmation を呼んで顧客にメールを送る。先月メールサービスが2日間障害を起こし、返金は成立したのに確認メールは送信されなかった。エージェントは毎回「返金完了、確認メールを送信しました」と報告し、サポートには「返金はされたのか？」という問い合わせが殺到した。正しい設計変更はどれか。","options_en":{"A":"Propagate each step's actual outcome: refund completed, confirmation failed, with a fallback such as in-chat confirmation","B":"Make send_confirmation retry until the email service recovers, so the agent's success report eventually becomes accurate","C":"Reverse the refund automatically whenever the confirmation step fails, keeping the two steps transactionally consistent","D":"Report success only after both steps succeed, and say nothing about the transaction if either step fails"},"options_ja":{"A":"各ステップの実際の結果を伝播する。返金は完了・確認メールは失敗と報告し、チャット内での確認表示などのフォールバックを添える","B":"メールサービスが復旧するまで send_confirmation にリトライさせ、エージェントの成功報告が最終的に正確になるようにする","C":"確認ステップが失敗したら返金を自動的に取り消し、2つのステップをトランザクションとして一貫させる","D":"両ステップが成功したときだけ成功と報告し、どちらかが失敗した場合はその取引について何も言わない"},"correct":"A","explanation_ja":{"why_correct":"失敗の隠蔽（部分失敗を全体成功として報告）が問い合わせ殺到の根本原因。ステップごとの結果を正確に伝播し、失敗したステップには代替手段（チャット内確認・後追い送信）を添えるのが正しいエラー伝播設計。部分的な成功は部分的な成功として扱う。","B":"2日間の障害では顧客は2日間何も知らされない。リトライ自体は有効な補助策だが、「その間どう報告するか」という本題に答えていない。","C":"成立した返金を通知の失敗で取り消すのは顧客への実害が最大の選択肢。主処理と通知の重要度を取り違えている。","D":"沈黙は誤報告より僅かにマシなだけで、顧客が状況を知れない点は同じ。問い合わせは減らない。"},"references":[{"title":"Building effective agents","url":"https://www.anthropic.com/research/building-effective-agents"},{"title":"MCP: Tools (isError)","url":"https://modelcontextprotocol.io/docs/concepts/tools"}],"lesson":"部分失敗は部分失敗として伝播する。成功で偽装も、全体取り消しも、沈黙も誤り","principle_tags":["structured-errors","root-cause-fix"],"difficulty":"standard","source":"original","review":{"agent":"2026-07-04","codex":"2026-07-04"},"status":"reviewed"},{"id":"S1-D5-004","scenario":"customer-support","domain":5,"task_statement":"5.5","question_en":"You want the agent to auto-approve routine refunds and route risky ones to humans. The model outputs a confidence score with each refund decision. Your team proposes: \"Route anything below 0.8 confidence to human review — 0.8 feels safely high.\" What is the flaw in this proposal?","question_ja":"定型的な返金はエージェントが自動承認し、リスクのあるものは人間にルーティングしたい。モデルは返金判断ごとに確信度スコアを出力する。チームの提案は「確信度0.8未満はすべて人間レビューへ。0.8なら十分に安全だろう」というもの。この提案の欠陥はどれか。","options_en":{"A":"Self-reported confidence should never be used for routing; only deterministic business rules can decide which cases humans review","B":"The 0.8 cutoff should be raised to 0.95, because refunds involve money and the cost of a wrong auto-approval is high","C":"The threshold is chosen by intuition; it should be calibrated against a labeled validation set so the cutoff maps to a measured error rate","D":"Confidence scores should route cases to more capable models first, with human review reserved for cases even those models flag"},"options_ja":{"A":"自己申告の確信度をルーティングに使ってはならない。人間がレビューすべきケースは決定論的なビジネスルールだけで決められる","B":"0.8 のカットオフは 0.95 に引き上げるべき。返金は金銭が絡み、誤った自動承認のコストが大きいから","C":"閾値が直感で選ばれている。ラベル付き検証セットで較正し、カットオフが実測エラー率に対応するようにすべき","D":"確信度スコアはまずより高性能なモデルへのルーティングに使い、人間レビューはそのモデルでも警告が出たケースに限定すべき"},"correct":"C","explanation_ja":{"why_correct":"モデルの確信度スコアは素のままでは較正されていない（0.8 が「80%正しい」を意味しない）。ラベル付き検証セットで「スコア X 以上なら実測エラー率 Y%」という対応を測ってから閾値を決めるのが公式の推奨。直感の 0.8 は根拠のない安心感にすぎない。","A":"極端な全否定。確信度ベースのルーティングは較正すれば有効な公式パターンで、決定論ルールと併用できる。","B":"0.95 も同じく直感値。較正なしでは 0.95 が 0.8 より安全かどうかすら実は分からない（閾値を上げれば人間レビュー量が爆発する副作用もある）。","D":"モデルの多段化は問題（閾値の根拠のなさ）に答えず複雑さだけ足している。どのモデルでも較正されていないスコアの問題は同じ。"},"references":[{"title":"Anthropic Academy（confidence calibration を扱う準備コース群）","url":"https://www.anthropic.com/learn"},{"title":"Building effective agents","url":"https://www.anthropic.com/research/building-effective-agents"}],"lesson":"確信度スコアは較正してから使う。閾値は直感でなくラベル付きデータの実測エラー率で決める","principle_tags":["root-cause-fix"],"difficulty":"hard","source":"original","review":{"agent":"2026-07-04","codex":"2026-07-04"},"status":"reviewed"},{"id":"S1-D5-005","scenario":"customer-support","domain":5,"task_statement":"5.2","question_en":"A customer writes only: \"My charge is wrong.\" The account shows three recent charges: a subscription renewal, a one-time purchase, and a partial refund adjustment. Your agent's current behavior is to assume the most common dispute type (subscription renewal) and start the refund flow. What should it do instead?","question_ja":"顧客のメッセージは「請求が間違っています」の一文だけ。アカウントには直近3件の請求がある: サブスクリプション更新、単発購入、一部返金の調整。エージェントの現在の挙動は、最も多い争議タイプ（サブスク更新）と仮定して返金フローを開始する。代わりにどうすべきか。","options_en":{"A":"Escalate to a human immediately, since the message is too vague for any automated system to act on safely","B":"Ask one targeted clarifying question that lists the three charges and lets the customer identify which one is wrong","C":"Investigate all three charges in parallel and present the customer with a full analysis of each before taking action","D":"Proceed with the subscription assumption but clearly state it, so the customer can correct the agent if it guessed wrong"},"options_ja":{"A":"直ちに人間へエスカレーションする。このメッセージはどんな自動システムにも安全に対応できないほど曖昧だから","B":"3件の請求を列挙し、どれが間違っているか顧客に特定してもらう的を絞った確認質問を1つする","C":"3件の請求すべてを並行して調査し、行動を起こす前に各請求の完全な分析を顧客に提示する","D":"サブスク更新の仮定で進めるが、その仮定を明示する。推測が外れていれば顧客が訂正できるようにするため"},"correct":"B","explanation_ja":{"why_correct":"曖昧さが行動を妨げる場合の正しいパターンは「推測でも丸投げでもなく、的を絞った確認」。アカウント情報（3件の請求）を使って選択肢を具体化した1つの質問は、顧客の負担が最小で、誤った返金フロー開始（不可逆になり得る操作）を防ぐ。","A":"曖昧＝即エスカレーションでは自動化の価値がない。1問の確認で解消できる曖昧さはエスカレーション基準（ポリシーギャップ・顧客要望・進行不能）に該当しない。","C":"3件の完全分析は過剰対応で応答も遅い。顧客は自分がどの請求の話をしているか知っているのだから、聞くのが最短。","D":"現在の挙動に開示を足しただけ。誤った仮定で返金フローが動き出すリスク（部分実行・顧客の混乱）は残る。"},"references":[{"title":"Building effective agents","url":"https://www.anthropic.com/research/building-effective-agents"}],"lesson":"行動を妨げる曖昧さは、文脈情報で具体化した1つの確認質問で解消する（推測実行も即エスカレも誤り）","principle_tags":["escalate-with-handoff"],"difficulty":"standard","source":"original","review":{"agent":"2026-07-04","codex":"2026-07-04"},"status":"reviewed"},{"id":"S1-D1-007","scenario":"customer-support","domain":1,"task_statement":"1.1","question_en":"Reviewing your agentic loop, a teammate acknowledges the API requires a tool_result block for each tool_use, but proposes: \"To save tokens, return an empty placeholder tool_result and keep the real data in our database — the model can look it up later if it needs it.\" Why must the actual result content be returned to the model?","question_ja":"エージェントループのレビューで、同僚は tool_use ごとに tool_result ブロックが必要なことは認めた上で、「トークン節約のため、中身は空のプレースホルダー tool_result を返し、実データはデータベースに保持すればいい。必要ならモデルが後で参照できる」と提案している。なぜ実際の結果の中身をモデルに返す必要があるのか。","options_en":{"A":"The API validates that every tool_result contains real content and rejects empty placeholder results with a 400 error","B":"Tool results are needed for billing reconciliation, since usage is metered per tool invocation recorded in history","C":"The model reasons about its next action from the history, so each result must be visible for it to decide what to do next","D":"Appending results lets the API cache the conversation prefix, which offsets the token cost the teammate is worried about"},"options_ja":{"A":"APIはすべての tool_result に実際の中身が含まれることを検証しており、空のプレースホルダー結果を400エラーで拒否するから","B":"ツール結果は課金照合に必要だから。使用量は履歴に記録されたツール呼び出しごとに計測される","C":"モデルは会話履歴から次の行動を推論するので、次に何をすべきか判断するには各結果が見えている必要があるから","D":"結果を追加すると会話プレフィックスがAPIにキャッシュされ、同僚が心配するトークンコストが相殺されるから"},"correct":"C","explanation_ja":{"why_correct":"エージェントループの本質は「ツール結果を見て次の行動をモデル自身が決める」こと。空のプレースホルダーでは lookup_order が何を返したのか分からず、返金へ進むか顧客に確認するかの分岐が不可能になる。「後で参照」も、その参照手段を与えて往復を増やすだけで、履歴に結果が見えなければ意思決定の連鎖が壊れる点は同じ。","A":"誤り。APIが検証するのは tool_use ID と tool_result の対応関係であり、中身が空であることは拒否しない（空の content は受理される）。「動いてしまう」からこそ、この提案は静かに推論を壊す。","B":"課金はトークン量ベースであり、履歴中のツール記録で照合される仕組みではない。","D":"プロンプトキャッシュは実在するが、それは結果を返す理由ではなくコストを和らげる副次効果。因果が逆。"},"references":[{"title":"Tool use overview","url":"https://docs.claude.com/en/docs/agents-and-tools/tool-use/overview"}],"lesson":"tool_result は形式を満たすだけでは無意味。中身がモデル駆動の意思決定の材料になる","principle_tags":["deterministic-termination","explicit-context-passing"],"difficulty":"hard","source":"original","review":{"agent":"2026-07-04","codex":"2026-07-04"},"status":"reviewed"},{"id":"S1-D2-005","scenario":"customer-support","domain":2,"task_statement":"2.3","question_en":"You add a summarize_case subagent that condenses long support cases for the escalation handoff. For convenience, you give it the same tool set as the main agent, including process_refund and escalate_to_human. During testing, a summarization run unexpectedly triggered a refund. What is the correct prevention?","question_ja":"長いサポートケースをエスカレーション引き継ぎ用に要約する summarize_case サブエージェントを追加した。便宜上、メインエージェントと同じツールセット（process_refund や escalate_to_human を含む）を与えている。テスト中、要約の実行が予期せず返金を発動させた。正しい防止策はどれか。","options_en":{"A":"Add a rule to the subagent's system prompt: \"You are a summarizer. Never call refund or escalation tools under any circumstances\"","B":"Restrict the subagent's tool set to read-only tools it actually needs, so action tools are not available to it at all","C":"Wrap process_refund with a confirmation step that requires the main agent to approve any refund a subagent initiates","D":"Log all subagent tool calls and review the logs daily so unintended actions are caught within one business day"},"options_ja":{"A":"サブエージェントのシステムプロンプトに「あなたは要約担当です。いかなる状況でも返金・エスカレーションツールを呼ばないこと」というルールを追加する","B":"サブエージェントのツールセットを実際に必要な読み取り専用ツールだけに制限し、アクション系ツールをそもそも利用不能にする","C":"process_refund に確認ステップを挟み、サブエージェント発の返金はメインエージェントの承認を必須にする","D":"サブエージェントの全ツール呼び出しをログに記録し、毎日レビューして意図しないアクションを1営業日以内に検出する"},"correct":"B","explanation_ja":{"why_correct":"最小権限の原則。要約タスクに必要なのは読み取りだけで、アクションツールを与えない構成にすれば「呼んでしまう」事故はアーキテクチャ上不可能になる。AgentDefinition のツール制限は、まさにサブエージェントごとに権限を絞るための仕組み。","A":"プロンプト禁止は確率的で、今回のような予期しない発動を確実には防げない。ツールが見えている限りリスクは残る。","C":"承認フローは正当な返金経路には有効な多層防御だが、要約担当がそもそも返金能力を持つ必要がないのに保持させる点で過剰かつ根本未解決。","D":"事後検出。返金は実行された後で、防止策ではない。"},"references":[{"title":"Agent SDK: Subagents","url":"https://code.claude.com/docs/en/agent-sdk/subagents"}],"lesson":"サブエージェントには任務に必要な最小のツールだけ与える。不要な能力は禁止でなく不付与","principle_tags":["least-privilege","code-must-prompt-should"],"difficulty":"standard","source":"original","review":{"agent":"2026-07-04","codex":"2026-07-04"},"status":"reviewed"},{"id":"S2-D3-001","scenario":"code-generation","domain":3,"task_statement":"3.1","question_en":"Your team's root CLAUDE.md contains both Python-specific and JavaScript-specific conventions in one file. A developer tries to make the Python rules load only when editing .py files by wrapping them in an `@import` reference with a comment like `<!-- only for python files -->`. When testing, the Python-specific rules are still loaded even while editing a .js file. What is the most effective fix?","question_ja":"チームのルートCLAUDE.mdは、Python向けとJavaScript向けの規約を1つのファイルにまとめている。開発者は `<!-- only for python files -->` というコメントを添えた `@import` 参照でPython向けルールを囲み、.pyファイル編集時のみ読み込まれるようにしようとした。しかしテストすると、.jsファイルを編集しているときでもPython向けルールが読み込まれてしまう。最も効果的な修正はどれか。","options_en":{"A":"Rewrite the `<!-- only for python files -->` comment inside the `@import` reference into stronger wording, such as \"STRICTLY apply only when editing Python files,\" so the model applies it more reliably","B":"Split the CLAUDE.md into one file per subdirectory so each subdirectory contains files of only one language","C":"Create `.claude/rules/python-style.md` with a `paths` frontmatter matching `**/*.py`, so it is loaded only when Python files are being edited","D":"Remove the shared conventions file and re-paste the Python-specific instructions into the prompt manually whenever working on Python files"},"options_ja":{"A":"`@import` 内の `<!-- only for python files -->` というコメントを「Pythonファイル編集時にのみ厳密に適用せよ」のような、より強い文言に書き換え、モデルがより確実に守るようにする","B":"サブディレクトリごとにCLAUDE.mdを分割し、各サブディレクトリが1言語のファイルのみを含むようにする","C":"`.claude/rules/python-style.md` を作成し、`paths` フロントマターに `**/*.py` を指定して、Pythonファイル編集時のみ読み込まれるようにする","D":"共有の規約ファイルを削除し、Python作業のたびにプロンプトへ手動でPython向け指示を貼り付ける"},"correct":"C","explanation_ja":{"why_correct":"`@import` はコンテキストへの取り込みを整理するための機能であり、常にその内容を読み込む。ファイル種別に応じた条件付き読み込みの手段ではない。ファイル種別（noun trigger）に応じて条件的に読み込ませるには `.claude/rules/` の `paths` フロントマターを使う必要があり、指定した glob にマッチするファイルを編集しているときだけそのルールファイルが読み込まれる。","A":"コメントの文言をどれだけ強めても、それは自然言語の指示であることに変わりなく、確実な条件分岐の保証にはならない。`@import` は常にコンテキストへ読み込まれる機能である以上、文言の強さに関わらず.jsファイル編集時にもPython向けルールは読み込まれ続ける。保証が必要な条件分岐をプロンプトの強さに頼るのは code must, prompt should の原則に反する。","B":"サブディレクトリ分割はディレクトリという場所を単位にした対処であり、同一ディレクトリ内でPythonとJavaScriptのファイルが混在するケースには対応できず、メンテナンス負荷も増える。","D":"手動貼り付けはプロンプトへの一時的な追加に過ぎず保証がなく、貼り忘れが必ず発生する。code must, prompt should の原則に反する。"},"references":[{"title":"Claude Code memory (CLAUDE.md, @import)","url":"https://docs.claude.com/en/docs/claude-code/memory"},{"title":"Claude Code settings (rules, paths frontmatter)","url":"https://docs.claude.com/en/docs/claude-code/settings"}],"lesson":"ファイル種別ごとに条件付きで規約を読み込みたいなら `.claude/rules/` の paths glob を使う。@import は条件分岐ではなく整理の手段。","principle_tags":["code-must-prompt-should","root-cause-fix"],"difficulty":"standard","source":"original","review":{"agent":"2026-07-05","codex":"2026-07-05*"},"status":"reviewed"},{"id":"S2-D3-002","scenario":"code-generation","domain":3,"task_statement":"3.2","question_en":"You create a custom slash command `/audit-deps` that runs a full dependency audit across a large monorepo, producing thousands of lines of output. Developers notice that after running it, Claude's subsequent responses in the same conversation become slower and lose track of earlier context because the audit output is filling the context window. Which frontmatter change to the command most directly fixes this?","question_ja":"大規模モノレポ全体の依存関係を監査するカスタムスラッシュコマンド `/audit-deps` を作成した。実行すると数千行の出力が生成される。開発者はこれを実行した後、同じ会話内でのClaudeの応答が遅くなり、以前の文脈を見失うことに気づいた。監査出力がコンテキストウィンドウを埋めているためである。このコマンドのフロントマターへのどの変更が最も直接的にこの問題を解決するか。","options_en":{"A":"Restrict `allowed-tools` to `Bash(npm audit:*)` only, so the command cannot invoke unrelated tools or scripts during the audit run","B":"Add `context: fork` to the command's frontmatter so it runs in an isolated sub-agent context and only a summary is returned to the main conversation","C":"Require a package name via `argument-hint` so audits run against one dependency at a time instead of scanning the whole monorepo in a single pass","D":"Add `max-output-tokens: 200000` to the command's frontmatter to raise the response generation limit until the full audit output fits"},"options_ja":{"A":"`allowed-tools` を `Bash(npm audit:*)` のみに制限し、無関係なツールを呼べないようにする","B":"コマンドのフロントマターに `context: fork` を追加し、独立したサブエージェントのコンテキストで実行させ、メイン会話にはサマリーのみを返すようにする","C":"`argument-hint` でパッケージ名を必須にし、モノレポ全体ではなく依存関係を1つずつ監査するようにする","D":"コマンドのフロントマターに `max-output-tokens: 200000` を追加し、監査出力がすべて収まるまで応答の生成上限を引き上げる"},"correct":"B","explanation_ja":{"why_correct":"`context: fork` はコマンド（スキル）を独立したサブエージェントのコンテキストで実行させ、その冗長な出力はメイン会話に流入せず、要約のみが返る。これはコンテキストの汚染そのものを防ぐ根本的な対処であり、症状を軽減するだけの対処とは異なる。","A":"`allowed-tools` はツール呼び出しの権限範囲を制限するものであり、監査結果として返るテキスト出力の量やコンテキストへの流入は制御しない。","C":"スコープを1依存関係ずつに絞っても、監査を繰り返すたびに同じ量の出力が積み重なってコンテキストを圧迫する問題は解消しない。むしろ呼び出し回数が増えて悪化しうる。","D":"`max-output-tokens` はスラッシュコマンドのフロントマターに実在するフィールドではない（1問1個までのfabricated機能）。また仮に応答の生成上限を上げられたとしても、それはコンテキストウィンドウに不要な出力が流入すること自体を防がず、症状に上から対処するだけの選択肢。"},"references":[{"title":"Claude Code slash commands","url":"https://docs.claude.com/en/docs/claude-code/slash-commands"},{"title":"Claude Code sub-agents","url":"https://docs.claude.com/en/docs/claude-code/sub-agents"}],"lesson":"冗長な出力を生むコマンド/スキルは context: fork で隔離し、メイン会話には要約だけを返す。","principle_tags":["least-privilege","root-cause-fix"],"difficulty":"standard","source":"original","review":{"agent":"2026-07-05","codex":"2026-07-05*"},"status":"reviewed"},{"id":"S2-D3-003","scenario":"code-generation","domain":3,"task_statement":"3.3","question_en":"Your team wants a set of instructions to apply automatically whenever someone performs a \"deploy\" task in Claude Code, regardless of which files are touched — but not during unrelated work like refactoring or bug fixes in the same repository. A teammate proposes creating `.claude/rules/deploy.md` with no `paths` frontmatter, reasoning that this makes it \"always available.\" What is the issue with this approach, and what should be used instead?","question_ja":"チームは、Claude Codeで「デプロイ」作業を行うときは常に、どのファイルを触っているかに関わらず自動適用され、一方でリファクタやバグ修正などの無関係な作業では適用されない指示セットを望んでいる。あるメンバーは `paths` フロントマターなしで `.claude/rules/deploy.md` を作成すれば「常に使える」と考えて提案した。このアプローチの問題点と、代わりに何を使うべきか。","options_en":{"A":"There is no issue — rules without a `paths` field apply globally across the whole repository, which matches the stated goal of being always available for deploy work","B":"Rules trigger on file-type patterns (noun triggers), not task/action semantics (verb triggers); \"deploy\" is an action, so a Skill invoked deliberately is the right mechanism","C":"Add `paths: [\"**/deploy/**\"]` to the rule so it only loads when files under a dedicated deploy directory are being edited","D":"Move the instructions into the root CLAUDE.md so they are always loaded, and rely on Claude to apply them only when it judges the current task to be a deploy"},"options_ja":{"A":"問題はない。`paths` フィールドがないルールはグローバルに適用され、これはデプロイ作業で常に使えるという目標と一致する","B":"ルールはファイル種別のパターン（noun trigger）で発火するものであり、タスク/操作の意味（verb trigger）では発火しない。「デプロイ」はファイル種別ではなく操作なので、代わりに明示的に呼び出すスキルを使うのが適切","C":"`paths: [\"**/deploy/**\"]` を追加し、デプロイ用ディレクトリにルールをスコープする","D":"指示をルートCLAUDE.mdに移し、常に読み込まれるようにした上で、デプロイ作業のときだけ適用するかどうかはClaudeの判断に任せる"},"correct":"B","explanation_ja":{"why_correct":"`.claude/rules/` はファイルパスのパターン（noun trigger）に基づいて条件的に読み込まれる仕組みであり、「どんな作業をしているか」という操作的な意味（verb trigger）には反応しない。`paths` を外せば「常に全作業で読み込まれる」だけであり、望んでいる『デプロイ作業のときだけ』という条件は満たされない。操作単位で発火させたいなら、開発者が明示的に呼び出すスキル（Skill）を使うのが正しい設計。","A":"`paths` なしのルールは全てのファイル・全ての作業に対して常に読み込まれる。これは『デプロイ作業のときだけ』という要求より広すぎ、リファクタやバグ修正のときにも適用されてしまう。","C":"ディレクトリでスコープしても、デプロイ作業がそのディレクトリ外のファイルに触れることもあれば、そのディレクトリ内で他の作業（リファクタ等）が行われることもあり、『操作の種類』と『ファイルの場所』を混同した対処になる。","D":"常時読み込み＋プロンプトでの適用判断への依存は保証がなく、code must, prompt should の原則に反する。ルールもCLAUDE.mdもファイル・場所ベースの仕組みであり、操作単位の条件分岐には向かない。"},"references":[{"title":"Claude Code settings (rules)","url":"https://docs.claude.com/en/docs/claude-code/settings"},{"title":"Claude Code skills","url":"https://docs.claude.com/en/docs/claude-code/skills"}],"lesson":"ルールはファイル種別（noun）で発火、スキルは操作（verb）で明示的に起動。操作単位の条件付けにルールのpathsを流用しない。","principle_tags":["root-cause-fix","single-responsibility"],"difficulty":"hard","source":"original","review":{"agent":"2026-07-05","codex":"2026-07-05*"},"status":"reviewed"},{"id":"S2-D3-004","scenario":"code-generation","domain":3,"task_statement":"3.4","question_en":"Your team is deciding whether to migrate an internal API from REST to GraphQL. Multiple valid architectural approaches exist (schema-first vs. code-first, whether to introduce a gateway layer), and the required versioning strategy is still being discussed with stakeholders. A developer asks Claude Code to \"start the migration.\" What is the most effective approach?","question_ja":"チームは社内APIをRESTからGraphQLへ移行するかどうかを検討している。複数の妥当なアーキテクチャ選択肢（スキーマファースト vs コードファースト、ゲートウェイ層を導入するか）があり、必要なバージョニング戦略はまだステークホルダーと議論中である。開発者がClaude Codeに「移行を始めて」と依頼した。最も効果的なアプローチはどれか。","options_en":{"A":"Direct execution — migrations are mechanical code changes that Claude Code can perform incrementally and safely regardless of which API paradigm is targeted","B":"Direct execution, but add a `// TODO: revisit architecture` comment at the top of the first generated file so the team can adjust course later without redoing work","C":"Plan mode, and have Claude finalize the versioning strategy unilaterally within the plan so implementation can start immediately without further stakeholder input","D":"Plan mode — the versioning strategy is still unsettled and multiple valid architectures exist, so investigating and presenting options before changing code reduces rework"},"options_ja":{"A":"直接実行 — マイグレーションはAPIパラダイムに関係なく段階的に行える機械的なコード変更である","B":"直接実行するが、最初に生成するファイルの先頭に `// TODO: revisit architecture` というコメントを入れ、後でチームが方向修正できるようにする","C":"plan modeを使うが、プラン内でバージョニング戦略をClaudeが一方的に確定させ、ステークホルダーへの確認なしにすぐ実装を始められるようにする","D":"plan mode — バージョニング戦略などの要件がまだ未確定で、かつ妥当なアーキテクチャの選択肢が複数存在するため、変更に着手する前に調査し選択肢を提示することで、手戻りのコストを減らせる"},"correct":"D","explanation_ja":{"why_correct":"plan modeは、要件が曖昧かつアーキテクチャの分岐が大きいタスクに適している。このケースはまさにその条件（バージョニング戦略が未確定、スキーマファースト/コードファースト等の複数の妥当な設計が存在）に合致する。着手前に調査・選択肢の提示を行うことで、後戻りの大きいコード変更前に方向性をすり合わせられる。","A":"『機械的な変更』という前提はこのケースには当てはまらない。要件未確定・アーキテクチャ分岐大という状況を無視しており、症状（コードを書く作業）だけを見て根本の曖昧さを見落としている。","B":"コメントで先送りを装っても、いったんコードとして生成された構造（scaffold）はその形を暗黙にチーム全体へ焼き付けてしまう。偽装した先送りであり、実際には決定を先にコミットしてしまっている。","C":"plan modeの目的は選択肢を調査・提示し人間の判断を仰ぐことであり、ステークホルダーとの合意が必要な意思決定をClaudeが代わりに確定させるのはplan modeの趣旨を超えたやりすぎ（over-engineering的な権限の踏み込み）。"},"references":[{"title":"Claude Code plan mode","url":"https://docs.claude.com/en/docs/claude-code/common-workflows"}],"lesson":"要件が曖昧でアーキテクチャの分岐が大きいタスクはplan modeで着手前に調査・合意形成する。plan modeは人間の意思決定を代替しない。","principle_tags":["plan-when-divergent"],"difficulty":"standard","source":"original","review":{"agent":"2026-07-05","codex":"2026-07-05*"},"status":"reviewed"},{"id":"S2-D3-005","scenario":"code-generation","domain":3,"task_statement":"3.5","question_en":"A developer asks Claude Code to implement OAuth token refresh logic for a legacy internal service. The service has several undocumented edge cases (expired refresh tokens, clock skew between servers, concurrent refresh requests for the same user), and the developer isn't sure themselves what all of these edge cases are. What technique would most effectively surface the right requirements before implementation begins?","question_ja":"開発者がClaude Codeに、レガシーな社内サービス向けのOAuthトークンリフレッシュ処理の実装を依頼した。このサービスには文書化されていないエッジケース（リフレッシュトークンの期限切れ、サーバー間のクロックスキュー、同一ユーザーからの同時リフレッシュ要求など）がいくつかあり、開発者自身もそのすべてを把握しているわけではない。実装に着手する前に適切な要件を引き出すために最も効果的な技術はどれか。","options_en":{"A":"Use the interview pattern — have Claude ask clarifying questions about the undocumented edge cases (expired tokens, clock skew, concurrent refresh) before writing any implementation","B":"Ask Claude to implement the token refresh logic using standard OAuth2 conventions, since well-established standards should already cover these edge cases automatically","C":"Have Claude write the full implementation first, then generate a list of edge cases it may have missed for the developer to review afterward","D":"Ask Claude to write exhaustive unit tests covering every conceivable edge case before implementing anything, without further input from the developer"},"options_ja":{"A":"インタビューパターンを使う — 実装を書き始める前に、未文書化のエッジケース（期限切れトークン、クロックスキュー、同時リフレッシュ）についてClaudeに確認質問をさせる","B":"標準的なOAuth2の慣習に従って実装するようClaudeに依頼する。確立された標準であれば、これらのエッジケースは自動的にカバーされているはずだから","C":"まずClaudeに実装全体を書かせ、その後で見落とした可能性のあるエッジケースの一覧を生成させて開発者がレビューする","D":"開発者からのさらなる情報なしに、考えられるすべてのエッジケースを網羅する単体テストを実装前にClaudeに書かせる"},"correct":"A","explanation_ja":{"why_correct":"対象が『開発者自身も把握していない、その環境固有の未文書化エッジケース』であるため、標準知識や網羅的なテスト生成では引き出せない。インタビューパターン（実装前にClaudeが具体的な確認質問をする）は、このレガシーサービス固有の失敗モードや制約を着手前に洗い出すのに最も効果的。","B":"『標準がカバーするはず』という仮定は、このサービスがレガシーかつ固有のエッジケースを持つという前提と矛盾する未検証の思い込みであり、要件にない前提を勝手に置いている。","C":"実装後にエッジケースを洗い出す方法は事後対応であり、すでに書かれた実装の手戻りコストが発生する。着手前に要件を引き出す方が効果的。","D":"開発者自身がエッジケースを把握していない状況で、Claudeだけに『考えられる全て』を網羅させようとするのはやりすぎであり、この特定のレガシーサービス固有の実際の制約（クロックスキューの実際の許容幅など）は開発者との対話なしには特定できない。"},"references":[{"title":"Claude Code common workflows","url":"https://docs.claude.com/en/docs/claude-code/common-workflows"}],"lesson":"要件を持つ人間自身も詳細を把握していない未文書化領域では、実装前にインタビューパターンで確認質問をさせ要件を引き出す。","principle_tags":["root-cause-fix"],"difficulty":"standard","source":"original","review":{"agent":"2026-07-05","codex":"2026-07-05*"},"status":"reviewed"},{"id":"S2-D3-006","scenario":"code-generation","domain":3,"task_statement":"3.6","question_en":"A developer wants to invoke Claude Code from a git pre-commit hook to automatically fix formatting issues in staged files before every commit completes, with no interactive prompt that could block the commit. Which invocation approach is correct?","question_ja":"開発者がgitのpre-commitフックからClaude Codeを呼び出し、コミットが完了する前にステージ済みファイルのフォーマット問題を自動修正したいと考えている。その際、コミットをブロックしうる対話的なプロンプトが出ないようにしたい。正しい呼び出し方はどれか。","options_en":{"A":"`claude --background \"fix formatting issues in the staged files before this commit completes\"`","B":"`claude --allowedTools Edit \"fix formatting issues in the staged files before this commit completes\"`","C":"`claude -p \"fix formatting issues in the staged files\"` to run headless and exit without waiting for input","D":"`claude --output-format json \"fix formatting issues in the staged files before this commit completes\"`"},"options_ja":{"A":"`claude --background \"fix formatting issues in the staged files\"`","B":"`claude --allowedTools Edit \"fix formatting issues in the staged files\"`","C":"`claude -p \"fix formatting issues in the staged files\"` を使い、ヘッドレス/プリントモードで実行し、結果を出力して対話入力を待たずに終了させる","D":"`claude --output-format json \"fix formatting issues in the staged files\"`"},"correct":"C","explanation_ja":{"why_correct":"`-p`（`--print`）はClaude Codeを非対話（ヘッドレス）モードで実行するフラグで、指定したプロンプトを一度だけ処理し、結果を出力して終了する。対話入力を待たないため、pre-commitフックのような自動化パイプラインからブロックせずに呼び出せる。","A":"`--background`（`--bg`）は実在するフラグで、セッションをバックグラウンドエージェントとして開始しセッションIDを返してすぐ制御を戻すためのものであり、`-p`/`--print` のヘッドレスモードとは併用できない。pre-commitフックはコミット完了前に修正結果を得て完了する必要があるが、`--background` は完了を待たずに制御を戻してしまうため、この用途には合わない（実在する機能の誤用途）。","B":"`--allowedTools` はツール利用の事前承認を行うが、対話的な確認プロンプトが出るかどうか（ヘッドレスで動くか）自体は制御しない。他の確認が発生すればフックは依然としてブロックしうる。","D":"`--output-format json` は出力のパース用フォーマットを指定するものであり、対話的に入力を待つかどうかとは無関係。`-p` と併用されることはあっても、これ単体では非対話実行を保証しない。"},"references":[{"title":"Claude Code CLI reference","url":"https://docs.claude.com/en/docs/claude-code/cli-reference"},{"title":"Claude Code headless mode / CI-CD","url":"https://docs.claude.com/en/docs/claude-code/sdk"},{"title":"Claude Code CLI reference (--background/--bg)","url":"https://code.claude.com/docs/en/cli-reference"}],"lesson":"自動化パイプラインからClaude Codeを対話なしで呼ぶには -p/--print のヘッドレスモードを使う。","principle_tags":["right-tool-for-latency"],"difficulty":"standard","source":"original","review":{"agent":"2026-07-05","codex":"2026-07-05*"},"status":"reviewed"},{"id":"S5-D3-001","scenario":"claude-code-ci","domain":3,"task_statement":"3.6","question_en":"Your CI pipeline runs `claude -p --output-format json \"review this PR for security issues\"` and pipes the output to a script expecting exactly the fields `finding_id`, `severity`, and `file_path`. Some runs produce JSON with a slightly different shape — a `findings` array is sometimes missing, or fields are named differently — which breaks the downstream script. What is the most effective fix?","question_ja":"CIパイプラインで `claude -p --output-format json \"review this PR for security issues\"` を実行し、出力を `finding_id`・`severity`・`file_path` という厳密なフィールドを期待するスクリプトへパイプしている。実行によってはJSONの形が微妙に異なり（`findings` 配列が欠けていたり、フィールド名が違っていたり）、下流のスクリプトが壊れる。最も効果的な修正はどれか。","options_en":{"A":"Switch to `--output-format stream-json` so the script can process the output incrementally as it streams in, rather than waiting for the full response","B":"Add `--json-schema` with the exact JSON Schema defining `finding_id`, `severity`, and `file_path` so the output is validated against that schema before being returned","C":"Add stricter wording to the prompt telling Claude to \"always return JSON with exactly the fields finding_id, severity, and file_path\", with no other changes to the invocation","D":"Post-process the output with a script that renames whichever fields are present in each run to the expected field names before parsing"},"options_ja":{"A":"`--output-format stream-json` に切り替え、応答全体を待つのではなく、出力をストリーミングで逐次処理できるようにする","B":"`--json-schema` に `finding_id`・`severity`・`file_path` を定義した正確なJSON Schemaを指定し、そのスキーマに対して検証された出力を返させる","C":"プロンプトの文言を強め、「必ずfinding_id, severity, file_pathという正確なフィールドでJSONを返せ」と指示する。他の呼び出し方法は変更しない","D":"各実行で存在するフィールドを期待される名前にリネームする後処理スクリプトをかませてからパースする"},"correct":"B","explanation_ja":{"why_correct":"`--json-schema` はprint mode専用のオプションで、指定したJSON Schemaに対して検証済みの構造化出力を保証する。これは`--output-format json`が『何らかのJSON』を返すだけなのとは異なり、フィールド名・構造が確実に一致することを保証する、コード側での担保。","A":"`stream-json` は出力の配信粒度（逐次ストリーム vs 一括）を変えるものであり、返ってくるJSONの構造やフィールド名の一貫性を保証するものではない。目的が違う機能の誤用途。","C":"プロンプトの文言強化は確率的な指示にすぎず、保証がない。まさに実際に起きている『形がたまに違う』問題そのものが、プロンプト任せの構造指定が信頼できないことを示している。","D":"存在するフィールドをリネームする後処理は、そもそも必要なフィールド自体が欠けているケース（`findings`配列がない等）には対処できず、症状に上から対処するだけで根本原因（出力構造の非保証）を直していない。"},"references":[{"title":"Claude Code CLI reference (--json-schema, --output-format)","url":"https://code.claude.com/docs/en/cli-reference"}],"lesson":"CIなど下流処理のためにJSON構造の保証が必要なら --json-schema を使う。--output-format json は形状を保証しない。","principle_tags":["code-must-prompt-should","structured-errors"],"difficulty":"standard","source":"original","review":{"agent":"2026-07-05","codex":"2026-07-05*"},"status":"reviewed"},{"id":"S5-D3-002","scenario":"claude-code-ci","domain":3,"task_statement":"3.6","question_en":"Your team adds a Claude Code review step as a required (blocking) pre-merge check. Occasionally the agent enters a long exploration loop investigating a large PR, and developers end up waiting 10+ minutes for a check that normally finishes in under 2. What is the most effective way to bound this without removing the guarantee the check provides?","question_ja":"チームはClaude Codeのレビューステップを必須（ブロッキング）のマージ前チェックとして追加した。時折、エージェントが大きなPRを調査する中で長い探索ループに入り、通常2分未満で終わるチェックに開発者が10分以上待たされることがある。このチェックが提供する保証を失わずに、これを最も効果的に抑制する方法はどれか。","options_en":{"A":"Add `--max-turns` (and/or `--max-budget-usd`) so the check errors out past a bound instead of running indefinitely, surfacing runaway runs as a fast, visible failure","B":"Switch the check from blocking to non-blocking so slow runs no longer hold up merges while the team looks into what is causing the occasional slowdown","C":"Increase the timeout at the CI runner level only, without changing any Claude Code invocation flags, so slow runs simply get more time to finish before failing","D":"Disable the review step temporarily until someone has time to investigate why some runs take much longer to complete than others"},"options_ja":{"A":"`--max-turns`（または `--max-budget-usd`）を追加し、妥当な上限を超えたらエラーで終了させ、暴走した実行を速く目に見える失敗として表面化させる","B":"チームが原因を調査している間、遅い実行がマージを止めないようチェックをブロッキングから非ブロッキングに変更する","C":"Claude Codeの呼び出しフラグは変えず、CIランナー側のタイムアウトだけを延長し、遅い実行にもっと時間を与える","D":"一部の実行がなぜ長くかかるのか誰かが調査する時間ができるまで、レビューステップを一時的に無効化する"},"correct":"A","explanation_ja":{"why_correct":"`--max-turns` や `--max-budget-usd` はprint modeで暴走を防ぐための決定論的な上限であり、チェックが必須（ブロッキング）である保証を維持したまま、異常に長い実行を速やかにエラーとして検知できる。根本の『暴走ループ』という原因に対して、保証つきの上限で対処している。","B":"非ブロッキングに変えることは、このチェックが本来提供すべき『マージ前に必ずレビューされる』という保証そのものを失わせる。症状（待ち時間）を消すために目的を放棄している。","C":"CIランナーのタイムアウトを延長しても、探索ループ自体は無制限のままで、単に待たされる時間が長くなるだけの対症療法。","D":"チェックの無効化は保証を完全に失わせる最も極端な対処であり、抑制ではなく撤去にあたる。"},"references":[{"title":"Claude Code CLI reference (--max-turns, --max-budget-usd)","url":"https://code.claude.com/docs/en/cli-reference"}],"lesson":"ブロッキングCIチェックの暴走対策は --max-turns / --max-budget-usd で上限を設け、チェックの保証自体は維持する。","principle_tags":["deterministic-termination","root-cause-fix"],"difficulty":"standard","source":"original","review":{"agent":"2026-07-05","codex":"2026-07-05*"},"status":"reviewed"},{"id":"S5-D4-001","scenario":"claude-code-ci","domain":4,"task_statement":"4.1","question_en":"Your CI review prompt says \"flag any code that looks risky.\" In practice, it flags nearly every instance of string concatenation near SQL-adjacent code, including parameterized queries that are already safe from injection, so developers have started ignoring all findings from this check. What is the most effective prompt change?","question_ja":"CIのレビュープロンプトには「危険に見えるコードにフラグを立てる」とだけ書かれている。実際には、SQL関連コード付近の文字列連結のほぼすべてにフラグを立ててしまい、すでにインジェクションから安全なパラメータ化クエリまで含まれるため、開発者はこのチェックの指摘をすべて無視するようになった。最も効果的なプロンプト変更はどれか。","options_en":{"A":"Add \"be more careful and thorough when reviewing this kind of code\" to the existing instruction, without specifying what makes a case reportable","B":"Remove SQL-related checks entirely from the review's scope so this category never produces findings again","C":"Replace the vague instruction with explicit criteria: flag SQL string concatenation only when it embeds unsanitized input, not parameterized queries","D":"Lower the confidence threshold at which findings are reported, so fewer of the borderline SQL-related findings are shown"},"options_ja":{"A":"既存の指示に「もっと注意深く徹底的にレビューして」と追加するだけで、何が報告に値するかは具体化しない","B":"SQL関連のチェックをレビュー対象から完全に除外し、このカテゴリでは指摘が出ないようにする","C":"曖昧な指示を明示的な基準に置き換える。パラメータ化されていない・サニタイズされていない外部入力を組み込むSQL文字列連結のみをフラグ対象とし、パラメータ化クエリは対象外とする","D":"指摘を報告する信頼度のしきい値を下げ、境界的なSQL関連の指摘の表示数を減らす"},"correct":"C","explanation_ja":{"why_correct":"誤検知の根本原因は『何が危険かの基準が曖昧』であること。具体的な基準（未サニタイズ・非パラメータ化の外部入力を含む場合のみ）に置き換えることで、安全なパラメータ化クエリを除外しつつ実際にリスクのあるパターンだけを検出でき、誤検知率を直接下げる。","A":"『もっと注意深く』は既存の指示と同様に曖昧なままで、何を危険とみなすかの基準を何も追加していない。同じ失敗が繰り返される。","B":"SQLチェックの完全な除外は、誤検知だけでなく本来検出すべき真の脆弱性の検出も失わせる。過剰な対処（やりすぎ）で問題をすり替えている。","D":"信頼度しきい値の調整は恣意的なノブであり、そもそも『何を危険とみなすか』というルール自体が誤っている根本原因には対処していない。"},"references":[{"title":"Claude Code common workflows (code review prompts)","url":"https://docs.claude.com/en/docs/claude-code/common-workflows"}],"lesson":"誤検知が多いレビュープロンプトは、曖昧な形容詞ではなく具体的な報告基準に置き換えて根本原因を直す。","principle_tags":["root-cause-fix"],"difficulty":"standard","source":"original","review":{"agent":"2026-07-05","codex":"2026-07-05*"},"status":"reviewed"},{"id":"S5-D4-002","scenario":"claude-code-ci","domain":4,"task_statement":"4.2","question_en":"Your CI classifies each commit message as \"needs changelog entry\" or not, using few-shot examples. All of the few-shot examples happen to be bug-fix commits, and the classifier now inconsistently misclassifies new-feature commits and dependency-bump commits. What is the most effective few-shot design fix?","question_ja":"CIは少数ショット例を使って各コミットメッセージを「変更履歴への記載が必要」か否かに分類している。少数ショット例はすべてバグ修正コミットで、その結果、新機能コミットや依存関係更新コミットの分類が一貫せずに誤る。最も効果的な少数ショット設計の修正はどれか。","options_en":{"A":"Add several more bug-fix examples with more elaborate step-by-step reasoning, so the existing category is demonstrated even more thoroughly than before","B":"Remove the few-shot examples entirely and rely on a single longer written instruction that describes all of the commit categories in prose instead","C":"Increase the number of bug-fix examples to 20 or more so the classification pattern for that one category becomes completely unmistakable","D":"Include few-shot examples spanning all major commit categories — bug fix, feature, dependency bump, docs — each with its classification reasoning"},"options_ja":{"A":"既存のバグ修正例をより詳しい理由づけとともにさらに数個追加し、同じカテゴリをより徹底的に示す","B":"少数ショット例を完全に取り除き、代わりにすべてのコミットカテゴリを説明する1つの長い指示文に頼る","C":"バグ修正例を20個以上に増やし、そのカテゴリの分類パターンを疑いようのないものにする","D":"バグ修正・新機能・依存関係更新・ドキュメントなど主要なコミットカテゴリすべてにまたがる少数ショット例を含め、それぞれの分類理由を示す"},"correct":"D","explanation_ja":{"why_correct":"誤分類はバグ修正以外のカテゴリで起きているのに、少数ショット例がバグ修正カテゴリに偏っていることが根本原因。各カテゴリを代表する例をそれぞれ理由づけ付きで含めることで、モデルはカテゴリ間の区別を学習でき、新機能や依存関係更新のような未提示カテゴリへの汎化が改善する。","A":"同じカテゴリ（バグ修正）の例を増やしても、他カテゴリとの区別を学習する材料にはならず、根本原因を直していない。","B":"少数ショット例は判断の曖昧なケースの汎化に効果的であり、それを完全に取り除いて説明文だけに頼るのは、crafting-guideが示す『詳細な指示だけでは一貫性が出ない』典型パターンに逆行する。","C":"バグ修正例をいくら増やしても同一カテゴリの精緻化にすぎず、新機能・依存関係更新カテゴリの誤分類は解消されない。"},"references":[{"title":"Claude Code common workflows (prompting)","url":"https://docs.claude.com/en/docs/claude-code/common-workflows"}],"lesson":"少数ショット例は誤分類が起きているカテゴリを代表するように選ぶ。1カテゴリへの偏りは他カテゴリへの汎化を妨げる。","principle_tags":["root-cause-fix"],"difficulty":"standard","source":"original","review":{"agent":"2026-07-05","codex":"2026-07-05*"},"status":"reviewed"},{"id":"S5-D4-003","scenario":"claude-code-ci","domain":4,"task_statement":"4.4","question_en":"Your CI extraction step parses a changelog entry from a PR description into structured fields (version, type, summary). Occasionally the `version` field fails to parse because a PR description uses a non-standard format like \"v2.3\" instead of \"2.3.0\". What is the most effective retry strategy?","question_ja":"CIの抽出ステップは、PRの説明文から変更履歴エントリ（version, type, summary）を構造化フィールドとしてパースしている。時折、PRの説明文が「2.3.0」ではなく「v2.3」のような非標準形式を使っているために `version` フィールドのパースが失敗する。最も効果的なリトライ戦略はどれか。","options_en":{"A":"Feed back the specific validation error (e.g., \"version did not match semver, got 'v2.3'\") and ask the model to correct just that one field","B":"Automatically retry the exact same extraction prompt, completely unchanged, up to three times in a row with no additional information at all","C":"Silently default the `version` field to \"0.0.0\" whenever parsing fails, so the pipeline never blocks or slows down because of this particular step","D":"Increase the model's temperature setting on every single retry so it produces a differently worded phrasing of the same extraction attempt"},"options_ja":{"A":"パース失敗時に、具体的な検証エラー（例:「version フィールドがsemver形式に一致せず、'v2.3' が得られた」）をフィードバックし、そのフィールドだけを修正するようモデルに依頼する","B":"追加情報なしで、同一の抽出プロンプトをそのまま最大3回自動リトライする","C":"パースが失敗するたびに `version` フィールドを黙って \"0.0.0\" にデフォルト設定し、このステップでパイプラインが止まらないようにする","D":"リトライ時にモデルのtemperature設定を上げ、同じ抽出について異なる言い回しを生成させる"},"correct":"A","explanation_ja":{"why_correct":"有効なvalidation-retryは、失敗の具体的な理由（どのフィールドが、なぜ、何の値で失敗したか）をモデルにフィードバックし、そのフィールドの修正を求める。これは形式の不一致（フォーマットの問題でリトライ可能）というリトライすべき失敗の性質に対応した、行動可能な修正。","B":"同じ入力に同じプロンプトを繰り返しても、失敗の原因についての新しい情報が与えられないため、同じ結果になる可能性が高い。","C":"デフォルト値で黙って埋めることは、実際には存在しない値を捏造して見せかけ上パイプラインを通すだけで、データの正確性を損ない、失敗を隠蔽している。","D":"temperatureはフォーマットの不一致という具体的な問題に対応する手段ではなく、無関係なレバーを動かしているだけの誤った適用。"},"references":[{"title":"Claude Code common workflows (structured output, validation)","url":"https://docs.claude.com/en/docs/claude-code/common-workflows"}],"lesson":"抽出失敗時のリトライは、具体的な検証エラーをフィードバックして該当フィールドの修正を求める。","principle_tags":["nullable-over-hallucination","structured-errors"],"difficulty":"standard","source":"original","review":{"agent":"2026-07-05","codex":"2026-07-05*"},"status":"reviewed"},{"id":"S5-D4-004","scenario":"claude-code-ci","domain":4,"task_statement":"4.6","question_en":"Your CI runs a single Claude Code pass to review an entire 40-file pull request for both style and correctness issues at once. Reviewers notice correctness bugs are caught inconsistently — sometimes flagged, sometimes missed for the same class of bug — while style feedback stays reliable. What architecture change would most improve correctness-finding consistency?","question_ja":"CIは、40ファイルからなるプルリクエスト全体のスタイルと正確性の両方の問題を、単一のClaude Codeパスで一度にレビューしている。レビュアーは、同じ種類のバグでも正確性の指摘は一貫せず（あるときはフラグが立ち、あるときは見逃される）、一方でスタイルの指摘は安定していることに気づいた。正確性の指摘の一貫性を最も改善するアーキテクチャ変更はどれか。","options_en":{"A":"Use a model with a larger context window for the single combined pass, without otherwise changing the review architecture","B":"Reduce the number of files reviewed per run by splitting the PR into arbitrary chunks, keeping the combined style-and-correctness review in each chunk","C":"Run two independent passes over the PR — one scoped only to correctness, another scoped only to style — instead of asking for both in one pass over all 40 files","D":"Have three independent reviewers each perform the same combined style-and-correctness pass and only report findings that at least two of the three separately flag"},"options_ja":{"A":"レビューアーキテクチャ自体は変えず、単一の統合パスに使うモデルのコンテキストウィンドウを大きくする","B":"PRを恣意的なチャンクに分割してレビュー対象ファイル数を減らすが、各チャンク内ではスタイルと正確性を統合したレビューのまま行う","C":"PRに対して2つの独立したパスを実行する。1つは正確性の問題のみ、もう1つはスタイルの問題のみに範囲を絞り、40ファイル全体を対象に両方を1パスで求めるのをやめる","D":"3人の独立したレビュアーがそれぞれ同じスタイルと正確性を統合したパスを行い、3人中2人以上がフラグを立てた指摘のみを報告する"},"correct":"C","explanation_ja":{"why_correct":"1回のパスでスタイルと正確性という異なる種類の懸念を同時に見ようとすると注意が分散し、正確性のような深い推論を要する観点の検出が不安定になる（attention dilution）。関心事ごとに独立した焦点を絞ったパスに分けることで、単一責任の原則により各パスの検出精度が安定する。","A":"コンテキストウィンドウを大きくしても、1パス内でスタイルと正確性という異なる種類の観点を同時に見るという注意分散の構造自体は変わらない。","B":"恣意的なファイル数によるチャンク分割は、スタイルと正確性を混ぜたままレビューする構造を維持しており、根本原因（関心事の混在）に対処していない。加えてクロスファイルの正確性問題を見落とすリスクもある。","D":"3人のレビュアーによる多数決は、間欠的にしか検出されない真の指摘を『少数意見』として抑制してしまう既知のアンチパターンであり、コストも高い、やりすぎた対処。"},"references":[{"title":"Claude Code common workflows (multi-pass review)","url":"https://docs.claude.com/en/docs/claude-code/common-workflows"}],"lesson":"スタイルと正確性など異なる種類の懸念は、1パスに混在させず関心事ごとに独立したパスへ分割して検出の一貫性を上げる。","principle_tags":["single-responsibility","root-cause-fix"],"difficulty":"standard","source":"original","review":{"agent":"2026-07-05","codex":"2026-07-05*"},"status":"reviewed"},{"id":"S6-D4-001","scenario":"structured-extraction","domain":4,"task_statement":"4.3","question_en":"Your extraction system handles two input types: invoices with a fixed, known schema, and free-text emails whose content type isn't known in advance (could be an invoice, a receipt, or neither). For invoices, you always want Claude to call `extract_invoice`. For emails, you want Claude to decide among `extract_invoice`, `extract_receipt`, or calling no tool at all. What is the correct `tool_choice` configuration for each case?","question_ja":"抽出システムは2種類の入力を扱う。固定の既知スキーマを持つ請求書と、内容の種類が事前にわからない自由文のメール（請求書かもしれないし、領収書かもしれないし、どちらでもないかもしれない）である。請求書に対しては常に `extract_invoice` を呼ばせたい。メールに対しては `extract_invoice`・`extract_receipt`・ツール不使用のいずれかをClaudeに判断させたい。それぞれのケースで正しい `tool_choice` の設定はどれか。","options_en":{"A":"Use `tool_choice: {\"type\": \"any\"}` for both invoices and emails, since `any` guarantees some tool will be called in either case","B":"Use `tool_choice: {\"type\": \"auto\"}` for both invoices and emails, letting Claude decide freely in every case based on the document content","C":"Use `tool_choice: {\"type\": \"tool\", \"name\": \"extract_invoice\"}` for both invoices and emails, so extraction behavior stays perfectly consistent across input types","D":"Use `tool_choice: {\"type\": \"tool\", \"name\": \"extract_invoice\"}` for invoices to force that specific tool, and `tool_choice: {\"type\": \"auto\"}` for emails so Claude can decide"},"options_ja":{"A":"請求書とメールの両方に `tool_choice: {\"type\": \"any\"}` を使う。`any` はどちらの場合もいずれかのツールが呼ばれることを保証するため","B":"請求書とメールの両方に `tool_choice: {\"type\": \"auto\"}` を使い、あらゆる場合にドキュメント内容に基づきClaudeに自由に判断させる","C":"請求書とメールの両方に `tool_choice: {\"type\": \"tool\", \"name\": \"extract_invoice\"}` を使い、入力の種類によらず抽出の挙動を完全に一貫させる","D":"請求書には `tool_choice: {\"type\": \"tool\", \"name\": \"extract_invoice\"}` を使ってそのツールを強制し、メールには `tool_choice: {\"type\": \"auto\"}` を使ってClaudeに判断させる"},"correct":"D","explanation_ja":{"why_correct":"スキーマが既知で確実に決まっているケース（請求書）は、`tool_choice` で特定のツール名を強制することでその呼び出しを保証できる。一方、文書種別が事前に分からず複数の妥当な選択肢がある場合（メール）は `auto` にしてClaude自身に文書内容から適切なツール（またはツールなし）を判断させるのが正しい使い分け。","A":"`any` はモデルが必ず『いずれかのツール』を呼ぶことを保証するが、どのツールかは保証しない。請求書のように特定のツールを確実に呼ばせたい場面には不十分。","B":"請求書のように呼び出すツールが確実に分かっている場面でも `auto` に任せると、モデルがツールを呼ばない、または誤ったツールを選ぶ余地を残してしまい、保証が必要な処理に確率的な判断を持ち込むことになる。","C":"メールの内容が請求書でない場合にも `extract_invoice` を強制すると、実際には該当しないスキーマへ無理に当てはめる誤抽出が発生する。既知スキーマ向けの強制指定を、内容が不確かなケースにまで一律適用する誤り。"},"references":[{"title":"Claude tool use — forcing tool use (tool_choice)","url":"https://docs.claude.com/en/docs/build-with-claude/tool-use/implement-tool-use"}],"lesson":"スキーマが既知で確実な入力には tool_choice で特定ツールを強制し、内容が不確かな入力には auto でモデルに判断させる。","principle_tags":["code-must-prompt-should"],"difficulty":"standard","source":"original","review":{"agent":"2026-07-05","codex":"2026-07-05*"},"status":"reviewed"},{"id":"S6-D4-002","scenario":"structured-extraction","domain":4,"task_statement":"4.5","question_en":"You need to extract structured fields from 50,000 archived support tickets for a one-time historical analysis. Results are needed within the next 3 business days, and nobody is waiting on any individual ticket's result in real time. What is the most appropriate processing approach?","question_ja":"1回限りの過去分析のために、アーカイブされた5万件のサポートチケットから構造化フィールドを抽出する必要がある。結果は今後3営業日以内に必要で、個々のチケットの結果をリアルタイムで待っている人はいない。最も適切な処理方式はどれか。","options_en":{"A":"Process all 50,000 tickets synchronously with high concurrency, since this is the fastest way to get every result back","B":"Submit the extraction as a Batches API job for all 50,000 tickets, since the workload is latency-tolerant and fits the 3-day deadline","C":"Submit only a random sample of 500 tickets through the Batches API and extrapolate the extracted patterns to the remaining 49,500","D":"Use the Batches API, but design each ticket extraction as a loop that calls tools mid-batch-request and re-injects results to continue that same request"},"options_ja":{"A":"5万件すべてを高い並行度で同期的に処理する。これがすべての結果を得る最速の方法だから","B":"5万件すべてに対してMessage Batches APIジョブとして抽出を投入する。このワークロードは遅延許容であり、バッチのウィンドウは3日の締め切りに十分収まるため","C":"Batches APIで500件のランダムサンプルのみを処理し、抽出パターンを残りの49,500件に外挿する","D":"Batches APIを使うが、各チケットの抽出をバッチリクエストの実行中にツールを呼び出し、その結果を同一リクエスト内に再投入して続行するループとして設計する"},"correct":"B","explanation_ja":{"why_correct":"5万件・遅延許容（リアルタイムで待つ人がいない）・締め切りに数日の余裕がある、というこのワークロードの特性はMessage Batches APIの想定用途（最大24時間の処理ウィンドウ、リアルタイムSLA不要）と正確に一致する。","A":"高並行度の同期処理は、リアルタイム性が不要なこのワークロードには過剰でコストの高い選択であり、遅延許容度に見合ったツール選択（right-tool-for-latency）に反する。","C":"この分析は要件として全件の抽出が必要であり、サンプリングして外挿することは、要求されていない前提（サンプルで十分）を勝手に置いて範囲を縮小するものであり、根本的な要求を満たさない。","D":"Message Batches APIの各リクエストは投入時点の内容を単発で処理する。バッチ実行中の応答（tool_useなど）を受けて外部でツールを実行し、その結果を同一バッチ実行の続きとして動的に注入するという往復はサポートされない。続きが必要なら新しい（バッチまたは同期の）リクエストとして再投入する必要があり、この一回性の投入モデルとは相容れない設計。"},"references":[{"title":"Message Batches API","url":"https://docs.claude.com/en/docs/build-with-claude/batch-processing"}],"lesson":"大量・遅延許容・締め切りに余裕があるワンタイムのワークロードにはMessage Batches APIが適する。ただし1バッチ内での複数ターンのツール呼び出しはできない。","principle_tags":["right-tool-for-latency"],"difficulty":"standard","source":"original","review":{"agent":"2026-07-05","codex":"2026-07-05*"},"status":"reviewed"},{"id":"S6-D5-001","scenario":"structured-extraction","domain":5,"task_statement":"5.5","question_en":"Your invoice extraction pipeline outputs a confidence score for each extracted field. The team proposes: \"Route anything below 0.9 to human review — 0.9 sounds strict enough to catch most errors.\" What is the flaw in this proposal, and what should be done instead?","question_ja":"請求書抽出パイプラインは、抽出した各フィールドに信頼度スコアを出力する。チームは「0.9未満はすべて人によるレビューに回す。0.9ならほとんどの誤りを捕捉できるほど厳格に聞こえる」と提案している。この提案の欠陥と、代わりに何をすべきか。","options_en":{"A":"There is no real flaw — 0.9 is a reasonable, sufficiently strict round number to use as the routing threshold across all fields and document types","B":"Calibrate the threshold empirically using a labeled validation set, measuring what confidence level actually predicts correct extractions per field","C":"Raise the arbitrary threshold to 0.95 instead of 0.9, so that even fewer low-confidence extractions can slip through to production","D":"Remove confidence scoring entirely and route every extracted field to human review, since any threshold is inherently unreliable"},"options_ja":{"A":"実質的な欠陥はない。0.9はすべてのフィールド・文書種別に共通して使う十分に厳格でキリの良いしきい値として妥当","B":"ラベル付き検証データセットを使ってしきい値を経験的に較正する。『キリが良く厳格に聞こえるから』ではなく、実際にどの信頼度水準がフィールドや文書種別ごとに正しい抽出を予測するかを計測して決める","C":"恣意的なしきい値を0.9ではなく0.95に引き上げ、低信頼度の抽出が本番へ漏れる件数をさらに減らす","D":"信頼度スコアリング自体をやめ、しきい値はどれも本質的に信頼できないため、抽出したすべてのフィールドを人によるレビューに回す"},"correct":"B","explanation_ja":{"why_correct":"モデルの信頼度スコアは、キリの良い数字に見えるという理由だけでは正しく較正されているとは限らない。実際にどの水準が各フィールド・文書種別で正しい抽出を予測するかは、ラベル付き検証セットを用いた経験的な較正（stratified samplingを含む）でしか確認できない。これが根本原因への対処。","A":"『0.9はキリが良く厳格に聞こえる』というのはまさに検証されていない思い込みであり、フィールドや文書種別によってモデルの信頼度の較正具合は異なりうるため、根拠のない仮定である。","C":"しきい値を0.95に上げても、根本原因（このしきい値がラベル付きデータで検証されていないこと）は変わらず、恣意的な数字を別の恣意的な数字に置き換えているだけ。","D":"信頼度スコアリングを完全に放棄し全件を人手レビューに回すのは、コストと運用負荷の面でやりすぎであり、信頼度スコアという有用なシグナルの活用を放棄する極端な対処。"},"references":[{"title":"Claude Cookbooks — classification and confidence calibration patterns","url":"https://github.com/anthropics/claude-cookbooks"}],"lesson":"信頼度によるルーティングしきい値は、キリの良い数字ではなくラベル付き検証データによる経験的な較正で決める。","principle_tags":["nullable-over-hallucination"],"difficulty":"standard","source":"original","review":{"agent":"2026-07-05","codex":"2026-07-05*"},"status":"reviewed"},{"id":"S6-D5-002","scenario":"structured-extraction","domain":5,"task_statement":"5.1","question_en":"Your pipeline feeds an entire 40-page contract into a single prompt and asks Claude to extract 15 fields (parties, effective date, payment terms, termination clauses, and more) in one pass. Fields located near the beginning and end of the contract are extracted reliably, but several fields whose source text sits in the middle pages are frequently missed or extracted incorrectly. What is the most effective fix?","question_ja":"パイプラインは40ページの契約書全体を1つのプロンプトに投入し、15個のフィールド（当事者、発効日、支払条件、解除条項など）を1回のパスで抽出するようClaudeに依頼している。契約書の冒頭と末尾付近にあるフィールドは確実に抽出できるが、中盤のページに根拠がある複数のフィールドは頻繁に見落とされるか誤って抽出される。最も効果的な修正はどれか。","options_en":{"A":"Increase the model's max_tokens setting for the response so there is more room to write out each of the 15 extracted fields","B":"Reorder the 15 fields alphabetically in the prompt's instructions so the model processes them in a more predictable sequence","C":"Split the extraction into targeted passes over sections of the contract, instead of one monolithic pass over all 40 pages at once","D":"Ask the model to first summarize the entire 40-page contract, and then extract all 15 fields from that summary instead of from the original text"},"options_ja":{"A":"抽出した15個のフィールドをすべて書き出す余地を増やすため、応答のmax_tokens設定を増やす","B":"プロンプトの指示内で15個のフィールドをアルファベット順に並べ替え、モデルがより予測可能な順序で処理できるようにする","C":"契約書全体40ページを1回の単一パスで処理するのではなく、契約書のセクションごとに絞った抽出パスに分割する（あるいは、まず各フィールドの根拠があるページを特定させてから、そのセクションから抽出させる）","D":"まずモデルに40ページの契約書全体を要約させ、元のテキストではなくその要約から15個のフィールドすべてを抽出させる"},"correct":"C","explanation_ja":{"why_correct":"長い文書の中盤にある情報が見落とされやすい現象（lost-in-the-middle）は、文書中の位置に関する既知の弱点。セクションごとに絞った抽出パスに分ける、または根拠ページを先に特定させてから抽出させることで、各フィールドの根拠テキストをモデルの注意が届きやすい位置に持ってくることができ、根本原因に対処する。","A":"max_tokensは出力側の生成余地を増やすものであり、入力文書の中盤にある情報がモデルに見落とされやすいという入力側の問題には対処しない。","B":"フィールドの提示順序を変えても、各フィールドの根拠がどのページにあるかという入力文書側の構造は変わらず、中盤の情報が見落とされやすい問題は解消しない。","D":"要約は本質的に情報を圧縮し、詳細を失う（lossy）。特に契約条項のような正確な文言が重要なフィールドでは、要約から抽出することでかえって精度が落ちる可能性が高い。"},"references":[{"title":"Claude Cookbooks — long context tips (lost-in-the-middle)","url":"https://github.com/anthropics/claude-cookbooks"}],"lesson":"長文書の中盤情報が見落とされる場合は、セクション単位の絞った抽出パスや根拠位置の事前特定で対処する。要約経由の抽出は詳細を損ないやすい。","principle_tags":["position-aware-context"],"difficulty":"standard","source":"original","review":{"agent":"2026-07-05","codex":"2026-07-05*"},"status":"reviewed"},{"id":"S6-D4-003","scenario":"structured-extraction","domain":4,"task_statement":"4.1","question_en":"Your pipeline extracts personally identifiable information (PII) from digitized form submissions and flags any field that \"looks like it could be sensitive\" for redaction. In practice, it redacts nearly every numeric field, including harmless internal reference numbers and page counts, alongside genuine PII like national ID numbers. What is the most effective prompt change?","question_ja":"パイプラインはデジタル化済みのフォーム提出データから個人識別情報（PII）を抽出し、「機微情報に見えそうな」フィールドをすべてredaction対象としてフラグする。実際には、国民ID番号のような本物のPIIだけでなく、無害な社内参照番号やページ数のような数値フィールドまでほぼすべてredactionしてしまう。最も効果的なプロンプト変更はどれか。","options_en":{"A":"Add \"only redact fields that are truly sensitive\" to the existing instruction, without specifying what counts as truly sensitive in this context","B":"Lower the model's confidence threshold for flagging a field as sensitive, so fewer borderline numeric fields end up getting redacted","C":"Redact every numeric field on every form by default, since it is always safer to over-redact than to risk missing genuine PII fields","D":"Replace the vague instruction with explicit criteria naming PII categories to redact (national ID, birth date, address, phone), excluding reference numbers"},"options_ja":{"A":"既存の指示に「本当に機微な情報だけをredactせよ」と追加するだけで、何が機微とみなされるかはそれ以上具体化しない","B":"境界的な数値フィールドがredactされにくくなるよう、フィールドを機微とフラグする信頼度のしきい値を下げる","C":"本物のPIIを見逃すリスクを避けるため、常にすべてのフォームのすべての数値フィールドをデフォルトでredactする","D":"曖昧な指示を、redact対象とする具体的なPIIカテゴリ（国民ID番号、生年月日、自宅住所、電話番号）を明示し、社内参照番号やページ数を明示的に除外する基準に置き換える"},"correct":"D","explanation_ja":{"why_correct":"誤検知の根本原因は『機微情報とは何か』の基準が曖昧なこと。具体的なPIIカテゴリを列挙し、除外すべき無害な数値フィールドを明示することで、モデルが実際に判断できる具体的な境界を与え、根本原因を直す。","A":"『本当に機微な情報だけ』という言い換えも依然として曖昧であり、何が該当するかの具体的な基準を与えていないため、同じ誤検知が繰り返される。","B":"信頼度しきい値の調整は恣意的なノブに過ぎず、『何を機微とみなすか』という誤った基準そのものには対処していない。","C":"すべての数値フィールドを一律にredactするのはやりすぎであり、内部参照番号やページ数といった業務上有用な情報まで失わせる過剰な対処。"},"references":[{"title":"Claude Code common workflows (prompting precision)","url":"https://docs.claude.com/en/docs/claude-code/common-workflows"}],"lesson":"誤検知の多い抽出・分類プロンプトは、曖昧な形容詞ではなく具体的な包含/除外基準に置き換える。","principle_tags":["root-cause-fix"],"difficulty":"standard","source":"original","review":{"agent":"2026-07-05","codex":"2026-07-05*"},"status":"reviewed"},{"id":"S6-D4-004","scenario":"structured-extraction","domain":4,"task_statement":"4.2","question_en":"Your pipeline classifies extracted line items from receipts into categories (meals, travel, office supplies, other). All of your few-shot examples happen to be meal line items, and the classifier now inconsistently misclassifies travel and office-supply line items. What is the most effective few-shot design fix?","question_ja":"パイプラインは、レシートから抽出した明細項目をカテゴリ（食事、旅費、事務用品、その他）に分類している。少数ショット例はたまたますべて食事の明細項目で構成されており、その結果、旅費や事務用品の明細項目の分類が一貫せず誤っている。最も効果的な少数ショット設計の修正はどれか。","options_en":{"A":"Add several more meal line-item examples with more detailed reasoning, reinforcing the one category that is already well represented","B":"Remove the few-shot examples entirely and rely on a single longer written instruction that describes all four categories in prose instead","C":"Include few-shot examples spanning all four categories — meals, travel, office supplies, other — each with its classification reasoning","D":"Increase the number of meal examples to 20 or more so that category's classification pattern becomes completely unmistakable"},"options_ja":{"A":"食事の明細例をより詳しい理由づけとともにさらに数個追加し、すでによく表現されている1カテゴリを補強する","B":"少数ショット例を完全に取り除き、代わりに4つのカテゴリすべてを説明する1つの長い指示文に頼る","C":"4つのカテゴリ（食事、旅費、事務用品、その他）すべてにまたがる少数ショット例を含め、それぞれの分類理由を示す","D":"食事の例を20個以上に増やし、そのカテゴリの分類パターンを疑いようのないものにする"},"correct":"C","explanation_ja":{"why_correct":"誤分類は食事以外のカテゴリで起きているのに、少数ショット例が食事カテゴリに偏っていることが根本原因。4カテゴリすべてを代表する例をそれぞれ理由づけ付きで含めることで、モデルはカテゴリ間の区別を学習でき、汎化が改善する。","A":"同じカテゴリ（食事）の例を増やしても、他カテゴリとの区別を学習する材料にはならず、根本原因を直していない。","B":"少数ショット例は曖昧なケースの汎化に効果的であり、それを完全に取り除いて説明文だけに頼るのは詳細な指示だけでは一貫性が出ないという典型的な失敗パターンに逆行する。","D":"食事の例をいくら増やしても同一カテゴリの精緻化にすぎず、旅費・事務用品カテゴリの誤分類は解消されない。"},"references":[{"title":"Claude Code common workflows (few-shot prompting)","url":"https://docs.claude.com/en/docs/claude-code/common-workflows"}],"lesson":"少数ショット例は誤分類が起きているカテゴリを代表するように選ぶ。1カテゴリへの偏りは他カテゴリへの汎化を妨げる。","principle_tags":["root-cause-fix"],"difficulty":"standard","source":"original","review":{"agent":"2026-07-05","codex":"2026-07-05*"},"status":"reviewed"}]};</script>
+<script>
+(function(){
+'use strict';
+/* ---------- データ ---------- */
+const QS = EXAM_DATA.questions;
+const SCN = EXAM_DATA.scenarios;
+const SCN_BY_KEY = {}; SCN.forEach(s => SCN_BY_KEY[s.key] = s);
+const DOMAINS = EXAM_DATA.domains || [];
+const DOM_BY_ID = {}; DOMAINS.forEach(d => DOM_BY_ID[d.id] = d);
+const EX = EXAM_DATA.exam_structure;
+const LS_PRACTICE = 'ccaf_practice_v1';
+const LS_HISTORY  = 'ccaf_mock_history_v1';
+const LS_USERS    = 'ccaf_users_v1';
+const LS_CUR_USER = 'ccaf_current_user_v1';
+const LS_COMMENTS = 'ccaf_comments_v1';
+
+/* ---------- ユーティリティ ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s)
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+  .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+function shuffle(arr){
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+function loadLS(key, fallback){
+  try { const v = JSON.parse(localStorage.getItem(key)); return v == null ? fallback : v; }
+  catch(e){ return fallback; }
+}
+function saveLS(key, val){ localStorage.setItem(key, JSON.stringify(val)); }
+function pad(n){ return String(n).padStart(2, '0'); }
+function fmtDateTime(iso){
+  const d = new Date(iso);
+  return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate())
+       + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+function fmtDur(sec){
+  const m = Math.floor(sec / 60), s = sec % 60;
+  return m + '分' + pad(s) + '秒';
+}
+function downloadJSON(obj, filename){
+  const blob = new Blob([JSON.stringify(obj, null, 2)], {type: 'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+/* ---------- 学習者プロファイル ----------
+   練習の正解履歴は学習者ごとに別キーで保存（未設定は従来キー＝後方互換）。
+   本番モードの結果には user フィールドが記録される。 */
+function currentUser(){ return loadLS(LS_CUR_USER, ''); }
+function userList(){ return loadLS(LS_USERS, []); }
+function userLabel(u){ return u ? u : '（名前未設定）'; }
+function fileSlug(u){ return u ? '-' + u.replace(/[^\w぀-ヿ゠-ヿ一-鿿-]+/g, '_') : ''; }
+function practiceKey(){ const u = currentUser(); return u ? LS_PRACTICE + '::' + u : LS_PRACTICE; }
+function renderUserSelect(){
+  const sel = $('#user-select');
+  const cur = currentUser();
+  const users = userList();
+  let h = '<option value="">（名前未設定）</option>';
+  users.forEach(u => { h += '<option value="' + esc(u) + '">' + esc(u) + '</option>'; });
+  h += '<option value="__add__">＋ 学習者を追加…</option>';
+  sel.innerHTML = h;
+  sel.value = users.includes(cur) ? cur : '';
+}
+(function initUserSelect(){
+  renderUserSelect();
+  $('#user-select').addEventListener('change', () => {
+    const sel = $('#user-select');
+    if (sel.value === '__add__'){
+      const name = (prompt('学習者名を入力してください（例: 山田太郎 / Taro）') || '').trim();
+      if (name && name !== '__add__'){
+        const users = userList();
+        if (!users.includes(name)){ users.push(name); saveLS(LS_USERS, users); }
+        saveLS(LS_CUR_USER, name);
+      }
+    } else {
+      saveLS(LS_CUR_USER, sel.value);
+    }
+    renderUserSelect();
+    applyPracticeFilter();
+    if (!$('#tab-history').hidden) renderHistory();
+  });
+})();
+/* ---------- コメント（フィードバック） ----------
+   問題への疑問・指摘をローカルに保存し、履歴タブからJSONで書き出して開発者へ送る */
+function commentsAll(){ return loadLS(LS_COMMENTS, []); }
+function commentFormHTML(qid){
+  const n = commentsAll().filter(c => c.id === qid).length;
+  return '<div class="exp-block fb-block" data-qid="' + esc(qid) + '"><details>'
+    + '<summary>💬 この問題にコメント・質問を残す / Leave a comment' + (n ? '（保存済み ' + n + ' 件）' : '') + '</summary>'
+    + '<textarea class="fb-text" rows="3" placeholder="内容の誤りの指摘・質問・疑問など。履歴タブの「コメント」からJSONで書き出して開発者に送れます / Report an issue or ask a question about this item"></textarea>'
+    + '<div style="margin-top:6px"><button class="fb-save small">コメントを保存 / Save</button></div>'
+    + '</details></div>';
+}
+document.addEventListener('click', e => {
+  const btn = e.target.closest('.fb-save');
+  if (!btn) return;
+  const block = btn.closest('.fb-block');
+  const ta = block.querySelector('.fb-text');
+  const text = (ta.value || '').trim();
+  if (!text) return;
+  const all = commentsAll();
+  all.push({ id: block.dataset.qid, user: currentUser() || null, at: new Date().toISOString(), text: text });
+  saveLS(LS_COMMENTS, all);
+  ta.value = '';
+  btn.textContent = '保存しました ✓ / Saved';
+  setTimeout(() => { btn.textContent = 'コメントを保存 / Save'; }, 1600);
+});
+function feedbackSectionHTML(){
+  const cms = commentsAll();
+  let h = '<div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin:22px 0 8px">'
+    + '<h3>💬 コメント（フィードバック）' + (cms.length ? '（' + cms.length + ' 件）' : '') + '</h3>'
+    + '<span class="spacer" style="flex:1"></span>'
+    + (cms.length ? '<button class="small" id="fb-export">JSONエクスポート</button>'
+      + '<button class="btn-danger small" id="fb-clear">消去</button>' : '')
+    + '</div>';
+  if (!cms.length){
+    h += '<p class="small muted">まだコメントはありません。練習の解説や模試の全問レビューから、問題への疑問・指摘を残せます。</p>';
+    return h;
+  }
+  h += '<p class="small muted" style="margin-bottom:6px">「JSONエクスポート」でファイルに書き出し、開発者（江尻）へ送ってください。</p>';
+  cms.slice().reverse().forEach(c => {
+    h += '<div class="hist-row" style="align-items:flex-start">'
+      + '<span class="when">' + fmtDateTime(c.at) + '</span>'
+      + '<span class="chip user">👤 ' + esc(userLabel(c.user)) + '</span>'
+      + '<span class="chip">' + esc(c.id) + '</span>'
+      + '<span class="small" style="flex:1 1 100%; white-space:pre-wrap">' + esc(c.text) + '</span>'
+      + '</div>';
+  });
+  return h;
+}
+function bindFeedbackSection(){
+  const ex = $('#fb-export'), cl = $('#fb-clear');
+  if (ex) ex.addEventListener('click', () => {
+    downloadJSON({ schema: 'ccaf-feedback-v1', exportedAt: new Date().toISOString(), comments: commentsAll() },
+      'ccaf-feedback-' + new Date().toISOString().replace(/[:T]/g, '-').slice(0, 16) + '.json');
+  });
+  if (cl) cl.addEventListener('click', () => {
+    if (confirm('保存済みコメントをすべて消去します（エクスポート済みか確認してください）。よろしいですか？')){
+      localStorage.removeItem(LS_COMMENTS);
+      renderHistory();
+    }
+  });
+}
+function scenarioName(key, lang){
+  const s = SCN_BY_KEY[key];
+  if (!s) return key;
+  return lang === 'en' ? s.name_en : s.name_ja;
+}
+function domainLabel(q){
+  const d = DOM_BY_ID[q.domain];
+  return 'D' + q.domain + (d ? '：' + d.name_ja : '');
+}
+function taskTitle(q){
+  const d = DOM_BY_ID[q.domain];
+  if (!d || !d.task_statements) return '';
+  const t = d.task_statements.find(t => t.id === q.task_statement);
+  return t ? t.title : '';
+}
+function qMetaChipsHTML(q){
+  let h = '<div class="chips">';
+  h += '<span class="chip">' + esc(q.id) + '</span>';
+  h += '<span class="chip">' + esc(scenarioName(q.scenario, 'ja')) + '</span>';
+  h += '<span class="chip dom">D' + q.domain + ' / ' + esc(q.task_statement) + '</span>';
+  if (q.difficulty) h += '<span class="chip">' + esc(q.difficulty) + '</span>';
+  if (q.status === 'draft') h += '<span class="chip draft">draft</span>';
+  h += '</div>';
+  return h;
+}
+function qTextHTML(q, lang){
+  let h = '';
+  if (lang === 'en' || lang === 'both') h += '<p class="qtext en">' + esc(q.question_en) + '</p>';
+  if (lang === 'ja' || lang === 'both') h += '<p class="qtext ja">' + esc(q.question_ja) + '</p>';
+  return h;
+}
+function optBodyHTML(q, key, lang){
+  if (lang === 'en')  return '<span class="en">' + esc(q.options_en[key]) + '</span>';
+  if (lang === 'ja')  return '<span>' + esc(q.options_ja[key]) + '</span>';
+  return '<span class="en">' + esc(q.options_en[key]) + '</span><span class="ja">' + esc(q.options_ja[key]) + '</span>';
+}
+/* 言語別ラベル（見出し・定型文） */
+function tLabel(lang, ja, en){
+  if (lang === 'en') return en;
+  if (lang === 'ja') return ja;
+  return ja + ' / ' + en;
+}
+/* 解説本文（why_correct / 誤答レター）。EN欠落時はJAへフォールバック */
+function expText(q, key, lang){
+  const ja = (q.explanation_ja && q.explanation_ja[key]) || '';
+  const en = (q.explanation_en && q.explanation_en[key]) || ja;
+  if (lang === 'en') return esc(en);
+  if (lang === 'ja') return esc(ja);
+  return '<span class="en">' + esc(en) + '</span><br><span class="ja">' + esc(ja) + '</span>';
+}
+function lessonText(q, lang){
+  const en = q.lesson_en || q.lesson;
+  if (lang === 'en') return esc(en);
+  if (lang === 'ja') return esc(q.lesson);
+  return '<span class="en">' + esc(en) + '</span><br><span class="ja">' + esc(q.lesson) + '</span>';
+}
+function explanationHTML(q, chosen, lang){
+  const ok = chosen === q.correct;
+  let h = '<div class="card">';
+  h += '<div class="verdict ' + (ok ? 'ok' : 'ng') + '">'
+     + (ok ? tLabel(lang, '正解！', 'Correct!') : tLabel(lang, '不正解。', 'Incorrect.')) + ' '
+     + tLabel(lang, '正解は', 'The answer is') + ' <b>' + q.correct + '</b>'
+     + (chosen ? '（' + tLabel(lang, 'あなたの回答', 'your answer') + ': ' + esc(chosen) + '）'
+               : '（' + tLabel(lang, '未回答', 'unanswered') + '）') + '</div>';
+  h += '<div class="exp-block"><h4>' + tLabel(lang, 'なぜ ' + q.correct + ' が正解か', 'Why ' + q.correct + ' is correct') + '</h4><p>'
+     + expText(q, 'why_correct', lang) + '</p></div>';
+  h += '<div class="exp-block"><h4>' + tLabel(lang, '誤答の理由', 'Why the other options are wrong') + '</h4>';
+  ['A','B','C','D'].forEach(k => {
+    if (k === q.correct || !q.explanation_ja[k]) return;
+    const mine = (k === chosen);
+    h += '<div class="exp-wrong' + (mine ? ' mine' : '') + '"><span class="k">' + k + '</span>'
+       + (mine ? '<span class="mine-tag">' + tLabel(lang, 'あなたの回答', 'your answer') + '</span>' : '')
+       + '　' + expText(q, k, lang) + '</div>';
+  });
+  h += '</div>';
+  h += '<div class="exp-block"><h4>' + tLabel(lang, '教訓', 'Lesson') + '</h4><div class="lesson">' + lessonText(q, lang) + '</div></div>';
+  if (q.references && q.references.length){
+    h += '<div class="exp-block refs"><h4>' + tLabel(lang, '出典', 'Sources') + '</h4>';
+    q.references.forEach(r => {
+      h += '<a href="' + esc(r.url) + '" target="_blank" rel="noopener">' + esc(r.title) + ' ↗</a>';
+    });
+    h += '</div>';
+  }
+  h += '<div class="exp-block"><h4>' + tLabel(lang, '分類', 'Classification') + '</h4><p class="small muted">' + esc(domainLabel(q))
+     + '　｜　' + tLabel(lang, 'タスク', 'Task') + ' ' + esc(q.task_statement)
+     + (taskTitle(q) ? '：' + esc(taskTitle(q)) : '') + '</p></div>';
+  h += commentFormHTML(q.id);
+  h += '</div>';
+  return h;
+}
+
+/* ---------- タブ ---------- */
+document.querySelectorAll('.tabs button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('active', b === btn));
+    ['practice','mock','history','help'].forEach(t => {
+      $('#tab-' + t).hidden = (t !== btn.dataset.tab);
+    });
+    if (btn.dataset.tab === 'history') renderHistory();
+  });
+});
+$('#bank-meta').textContent = '収載 ' + QS.length + ' 問 ・ '
+  + (EXAM_DATA.meta.version ? 'v' + EXAM_DATA.meta.version + ' ・ ' : '')
+  + '生成 ' + EXAM_DATA.meta.generated_at
+  + (EXAM_DATA.meta.include_drafts ? ' ・ draft含む' : '');
+
+/* ==================================================================
+   練習モード
+================================================================== */
+const practice = { pool: [], idx: 0, chosen: null, lang: 'ja' };
+
+function practiceHist(){ return loadLS(practiceKey(), {}); }
+
+function baseFilteredPool(){
+  const sc = $('#pf-scenario').value, dm = $('#pf-domain').value;
+  return QS.filter(q =>
+    (sc === 'all' || q.scenario === sc) &&
+    (dm === 'all' || String(q.domain) === dm));
+}
+function applyPracticeFilter(){
+  const hist = practiceHist();
+  let pool = baseFilteredPool();
+  if ($('#pf-unsolved').checked){
+    pool = pool.filter(q => !(hist[q.id] && hist[q.id].correct > 0));
+  }
+  practice.pool = shuffle(pool);
+  practice.idx = 0;
+  practice.chosen = null;
+  renderPractice();
+}
+function renderPracticeProgress(){
+  const hist = practiceHist();
+  const base = baseFilteredPool();
+  const solved = base.filter(q => hist[q.id] && hist[q.id].correct > 0).length;
+  $('#pf-progress').innerHTML = 'このフィルタで <b>' + solved + ' / ' + base.length
+    + '</b> 問 正解済み' + (practice.pool.length
+      ? '　（出題中: ' + (practice.idx + 1) + ' / ' + practice.pool.length + ' 問目）'
+      : '');
+}
+function renderPractice(){
+  renderPracticeProgress();
+  const box = $('#pf-question');
+  if (!practice.pool.length){
+    box.innerHTML = '<div class="card empty">条件に合う問題がありません。フィルタを変更してください。</div>';
+    return;
+  }
+  const q = practice.pool[practice.idx];
+  const lang = practice.lang;
+  const chosen = practice.chosen;
+  let h = '<div class="card">';
+  h += qMetaChipsHTML(q);
+  h += qTextHTML(q, lang);
+  h += '<div class="options">';
+  ['A','B','C','D'].forEach(k => {
+    let cls = 'opt';
+    if (chosen){
+      if (k === q.correct) cls += ' correct';
+      else if (k === chosen) cls += ' wrong-chosen';
+    }
+    h += '<button class="' + cls + '" data-key="' + k + '"' + (chosen ? ' disabled' : '') + '>'
+       + '<span class="key">' + k + '</span><span class="body">' + optBodyHTML(q, k, lang) + '</span></button>';
+  });
+  h += '</div></div>';
+  if (chosen) h += explanationHTML(q, chosen, lang);
+  h += '<div class="qactions">'
+     + (chosen ? '<button class="btn-primary" id="pf-next">次の問題 →</button>'
+               : '<button id="pf-skip">スキップ →</button>')
+     + '</div>';
+  box.innerHTML = h;
+
+  if (!chosen){
+    box.querySelectorAll('.opt').forEach(btn => {
+      btn.addEventListener('click', () => answerPractice(q, btn.dataset.key));
+    });
+    $('#pf-skip').addEventListener('click', nextPractice);
+  } else {
+    $('#pf-next').addEventListener('click', nextPractice);
+  }
+}
+function answerPractice(q, key){
+  practice.chosen = key;
+  const hist = practiceHist();
+  const rec = hist[q.id] || { attempts: 0, correct: 0, lastAnswer: null, lastAt: null };
+  rec.attempts += 1;
+  if (key === q.correct) rec.correct += 1;
+  rec.lastAnswer = key;
+  rec.lastAt = new Date().toISOString();
+  hist[q.id] = rec;
+  saveLS(practiceKey(), hist);
+  renderPractice();
+}
+function nextPractice(){
+  practice.chosen = null;
+  if (!practice.pool.length){ renderPractice(); return; }
+  if ($('#pf-unsolved').checked){
+    // 現在の次の問題から始まる順序に回転し、正解済みをプールから外す
+    const hist = practiceHist();
+    const solved = q => hist[q.id] && hist[q.id].correct > 0;
+    const rotated = practice.pool.slice(practice.idx + 1)
+      .concat(practice.pool.slice(0, practice.idx + 1));
+    practice.pool = rotated.filter(q => !solved(q));
+    practice.idx = 0;
+  } else {
+    practice.idx = (practice.idx + 1) % practice.pool.length;
+  }
+  renderPractice();
+}
+/* フィルタ初期化 */
+(function initPracticeFilters(){
+  const scSel = $('#pf-scenario');
+  scSel.innerHTML = '<option value="all">すべて</option>'
+    + SCN.map(s => '<option value="' + esc(s.key) + '">' + esc(s.name_ja) + '</option>').join('');
+  const dmSel = $('#pf-domain');
+  dmSel.innerHTML = '<option value="all">すべて</option>'
+    + [1,2,3,4,5].map(i => {
+        const d = DOM_BY_ID[i];
+        return '<option value="' + i + '">D' + i + (d ? ' ' + esc(d.name_ja) : '') + '</option>';
+      }).join('');
+  scSel.addEventListener('change', applyPracticeFilter);
+  dmSel.addEventListener('change', applyPracticeFilter);
+  $('#pf-unsolved').addEventListener('change', applyPracticeFilter);
+  $('#pf-lang').querySelectorAll('button').forEach(b => {
+    b.addEventListener('click', () => {
+      practice.lang = b.dataset.lang;
+      $('#pf-lang').querySelectorAll('button').forEach(x => x.classList.toggle('active', x === b));
+      renderPractice();
+    });
+  });
+})();
+applyPracticeFilter();
+
+/* ==================================================================
+   本番モード
+================================================================== */
+let mock = null;          // 進行中セッション
+let mockTimerId = null;
+let lastResult = null;    // 結果画面表示中のデータ
+const review = { lang: 'ja' };
+
+function mockCapacity(){
+  const byScn = {};
+  QS.forEach(q => { (byScn[q.scenario] = byScn[q.scenario] || []).push(q); });
+  const counts = Object.values(byScn)
+    .map(a => Math.min(a.length, EX.questions_per_scenario))
+    .sort((a,b) => b - a)
+    .slice(0, EX.scenarios_drawn);
+  return {
+    scenarioCount: Math.min(Object.keys(byScn).length, EX.scenarios_drawn),
+    total: counts.reduce((a,b) => a + b, 0)
+  };
+}
+function renderMockStart(){
+  $('#mk-start').hidden = false; $('#mk-exam').hidden = true; $('#mk-result').hidden = true;
+  const cap = mockCapacity();
+  const short = (cap.total < EX.questions_total) || (cap.scenarioCount < EX.scenarios_drawn);
+  let h = '<div class="card">';
+  h += '<h2 style="margin-bottom:10px">本番モード（模擬試験）</h2>';
+  h += '<p class="muted">本番の CCA-F 形式に合わせた模試です。</p>';
+  h += '<ul class="muted" style="margin:10px 0 10px 22px">'
+     + '<li>' + SCN.length + ' シナリオから <b>' + EX.scenarios_drawn + ' つをランダム抽出</b> × 各最大 <b>'
+     + EX.questions_per_scenario + ' 問</b>（計 ' + EX.questions_total + ' 問想定）</li>'
+     + '<li>制限時間 <b>' + EX.time_limit_minutes + ' 分</b>（下で変更可）</li>'
+     + '<li>試験中は本番同様 <b>英語表示のみ</b>。フラグ・見直し・選び直しが可能</li>'
+     + '<li>合格ラインの目安: スケールドスコア <b>' + EX.passing_scaled_score + '</b></li>'
+     + '</ul>';
+  if (short){
+    h += '<div class="notice">⚠ 現在の問題バンク（' + QS.length + ' 問・' + cap.scenarioCount
+       + ' シナリオ）では最大 <b>' + cap.total + ' 問</b>での模試になります（本番は '
+       + EX.questions_total + ' 問・' + EX.scenarios_drawn + ' シナリオ）。</div>';
+  }
+  h += '<div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:14px">'
+     + '<label class="muted">制限時間 <input type="number" id="mk-limit" value="' + EX.time_limit_minutes
+     + '" min="1" max="600" style="width:80px"> 分</label>'
+     + '<button class="btn-primary" id="mk-begin">試験を開始する</button>'
+     + '</div>';
+  h += '</div>';
+  $('#mk-start').innerHTML = h;
+  $('#mk-begin').addEventListener('click', startMock);
+}
+function startMock(){
+  const limit = Math.max(1, parseInt($('#mk-limit').value, 10) || EX.time_limit_minutes);
+  const byScn = {};
+  QS.forEach(q => { (byScn[q.scenario] = byScn[q.scenario] || []).push(q); });
+  const keys = shuffle(Object.keys(byScn)).slice(0, EX.scenarios_drawn);
+  const questions = [];
+  const scenarios = [];
+  keys.forEach(k => {
+    const picked = shuffle(byScn[k]).slice(0, EX.questions_per_scenario);
+    scenarios.push({ key: k, count: picked.length });
+    questions.push(...picked);
+  });
+  mock = {
+    questions, scenarios,
+    answers: {}, flags: {},
+    cur: 0,
+    startedAt: new Date().toISOString(),
+    timeLimitMin: limit,
+    deadline: Date.now() + limit * 60000
+  };
+  $('#mk-start').hidden = true; $('#mk-result').hidden = true; $('#mk-exam').hidden = false;
+  renderMockExamShell();
+  renderMockQuestion();
+  clearInterval(mockTimerId);
+  mockTimerId = setInterval(tickMock, 1000);
+  tickMock();
+}
+function renderMockExamShell(){
+  $('#mk-exam').innerHTML =
+    '<div class="exam-top">'
+    + '<div class="timer" id="mk-timer">--:--</div>'
+    + '<div class="muted small">残り時間</div>'
+    + '<div class="spacer"></div>'
+    + '<button class="btn-danger" id="mk-finish">試験を終了する</button>'
+    + '</div>'
+    + '<div class="exam-layout">'
+    + '<aside class="qnav"><div class="grid" id="mk-grid"></div>'
+    +   '<div class="legend">'
+    +   '<span><i style="background:rgba(90,169,255,.5)"></i>回答済み</span>'
+    +   '<span><i style="background:rgba(247,168,61,.6)"></i>フラグ</span>'
+    +   '<span><i style="background:#232b38"></i>未回答</span>'
+    +   '</div></aside>'
+    + '<div id="mk-qarea"></div>'
+    + '</div>';
+  $('#mk-finish').addEventListener('click', () => finishMock(false));
+}
+function tickMock(){
+  if (!mock) return;
+  const remain = Math.max(0, mock.deadline - Date.now());
+  const sec = Math.ceil(remain / 1000);
+  const m = Math.floor(sec / 60), s = sec % 60;
+  const t = $('#mk-timer');
+  if (t){
+    t.textContent = pad(m) + ':' + pad(s);
+    t.classList.toggle('low', remain < 10 * 60000);
+  }
+  if (remain <= 0) finishMock(true);
+}
+function renderMockGrid(){
+  const grid = $('#mk-grid');
+  grid.innerHTML = mock.questions.map((q, i) => {
+    let cls = 'cell';
+    if (mock.answers[q.id]) cls += ' answered';
+    if (mock.flags[q.id]) cls += ' flagged';
+    if (i === mock.cur) cls += ' current';
+    return '<button class="' + cls + '" data-i="' + i + '">' + (i + 1) + '</button>';
+  }).join('');
+  grid.querySelectorAll('.cell').forEach(c => {
+    c.addEventListener('click', () => { mock.cur = +c.dataset.i; renderMockQuestion(); });
+  });
+}
+function renderMockQuestion(){
+  renderMockGrid();
+  const i = mock.cur, q = mock.questions[i];
+  const scn = SCN_BY_KEY[q.scenario];
+  const chosen = mock.answers[q.id] || null;
+  let h = '<div class="card">';
+  h += '<div class="chips"><span class="chip">Question ' + (i + 1) + ' / ' + mock.questions.length + '</span>'
+     + '<span class="chip">' + esc(scn ? scn.name_en : q.scenario) + '</span></div>';
+  if (scn && scn.context_en){
+    h += '<details class="scenario-ctx"><summary>Scenario context</summary><p>'
+       + esc(scn.context_en) + '</p></details>';
+  }
+  h += '<p class="qtext en">' + esc(q.question_en) + '</p>';
+  h += '<div class="options">';
+  ['A','B','C','D'].forEach(k => {
+    const cls = 'opt' + (chosen === k ? ' selected' : '');
+    h += '<button class="' + cls + '" data-key="' + k + '">'
+       + '<span class="key">' + k + '</span><span class="body"><span class="en">'
+       + esc(q.options_en[k]) + '</span></span></button>';
+  });
+  h += '</div></div>';
+  h += '<div class="qactions" style="justify-content:space-between">'
+     + '<button id="mk-flag" class="btn-flag' + (mock.flags[q.id] ? ' on' : '') + '">'
+     + (mock.flags[q.id] ? '⚑ フラグ解除' : '⚐ フラグを付ける') + '</button>'
+     + '<span>'
+     + '<button id="mk-prev"' + (i === 0 ? ' disabled' : '') + '>← 前へ</button> '
+     + '<button id="mk-next" class="btn-primary"' + (i === mock.questions.length - 1 ? ' disabled' : '') + '>次へ →</button>'
+     + '</span></div>';
+  $('#mk-qarea').innerHTML = h;
+
+  $('#mk-qarea').querySelectorAll('.opt').forEach(btn => {
+    btn.addEventListener('click', () => {
+      mock.answers[q.id] = btn.dataset.key;   // 選び直し可能
+      renderMockQuestion();
+    });
+  });
+  $('#mk-flag').addEventListener('click', () => {
+    mock.flags[q.id] = !mock.flags[q.id];
+    renderMockQuestion();
+  });
+  $('#mk-prev').addEventListener('click', () => { if (mock.cur > 0){ mock.cur--; renderMockQuestion(); } });
+  $('#mk-next').addEventListener('click', () => { if (mock.cur < mock.questions.length - 1){ mock.cur++; renderMockQuestion(); } });
+}
+function finishMock(auto){
+  if (!mock) return;
+  const unanswered = mock.questions.filter(q => !mock.answers[q.id]).length;
+  if (!auto && unanswered > 0){
+    if (!confirm('未回答が ' + unanswered + ' 問あります。終了して採点しますか？')) return;
+  }
+  clearInterval(mockTimerId); mockTimerId = null;
+  const finishedAt = new Date().toISOString();
+  const durationSec = Math.min(
+    mock.timeLimitMin * 60,
+    Math.round((Date.parse(finishedAt) - Date.parse(mock.startedAt)) / 1000));
+  const answers = mock.questions.map(q => ({
+    id: q.id,
+    chosen: mock.answers[q.id] || null,
+    correct: q.correct,
+    flagged: !!mock.flags[q.id]
+  }));
+  const rawScore = answers.filter(a => a.chosen === a.correct).length;
+  const total = answers.length;
+  const scaledEstimate = Math.round(100 + (rawScore / total) * 900);
+  const result = {
+    schema: 'ccaf-result-v1',
+    mode: 'mock',
+    user: currentUser() || null,
+    startedAt: mock.startedAt,
+    finishedAt, durationSec,
+    timeLimitMin: mock.timeLimitMin,
+    scenarios: mock.scenarios.map(s => s.key),
+    answers, rawScore, total, scaledEstimate
+  };
+  const hist = loadLS(LS_HISTORY, []);
+  hist.push(result);
+  saveLS(LS_HISTORY, hist);
+  lastResult = { result, questions: mock.questions.slice() };
+  mock = null;
+  renderMockResult();
+}
+function rateRowHTML(label, ok, total){
+  const pct = total ? Math.round(ok / total * 100) : 0;
+  return '<tr><td>' + esc(label) + '</td><td class="num">' + ok + ' / ' + total + '</td>'
+    + '<td class="num">' + pct + '%</td>'
+    + '<td><div class="bar"><i style="width:' + pct + '%"></i></div></td></tr>';
+}
+function renderMockResult(){
+  $('#mk-start').hidden = true; $('#mk-exam').hidden = true; $('#mk-result').hidden = false;
+  const { result, questions } = lastResult;
+  const qById = {}; questions.forEach(q => qById[q.id] = q);
+  const pass = result.scaledEstimate >= EX.passing_scaled_score;
+  const pct = Math.round(result.rawScore / result.total * 100);
+
+  let h = '<div class="card score-hero">'
+    + '<div class="big">' + result.scaledEstimate + '<small> / 1000（換算目安）</small></div>'
+    + '<div><div style="font-size:20px; font-weight:700">' + result.rawScore + ' / ' + result.total
+    + ' <span class="muted small">(' + pct + '%)</span></div>'
+    + '<span class="badge ' + (pass ? 'pass' : 'fail') + '">'
+    + (pass ? '✓ ' + EX.passing_scaled_score + ' ライン超え' : '✗ ' + EX.passing_scaled_score + ' ライン未達')
+    + '</span></div>'
+    + '<div class="spacer" style="flex:1"></div>'
+    + '<div><button class="btn-primary" id="mk-export">結果をエクスポート</button> '
+    + '<button id="mk-again">スタート画面へ</button></div>'
+    + '<p class="small muted" style="flex-basis:100%">受験者: ' + esc(userLabel(result.user)) + '　｜　'
+    + '※ スケールドスコアは round(100 + 素点比率 × 900) の単純換算で、'
+    + '公式の等化（equating）とは異なる目安です。所要時間 ' + fmtDur(result.durationSec) + '。</p>'
+    + '</div>';
+
+  // シナリオ別
+  h += '<div class="card"><h3 style="margin-bottom:8px">シナリオ別正答率</h3><table class="stats">'
+    + '<tr><th>シナリオ</th><th>正答</th><th>率</th><th></th></tr>';
+  result.scenarios.forEach(key => {
+    const as = result.answers.filter(a => qById[a.id].scenario === key);
+    h += rateRowHTML(scenarioName(key, 'ja'), as.filter(a => a.chosen === a.correct).length, as.length);
+  });
+  h += '</table></div>';
+
+  // ドメイン別
+  const doms = [...new Set(questions.map(q => q.domain))].sort();
+  h += '<div class="card"><h3 style="margin-bottom:8px">ドメイン別正答率</h3><table class="stats">'
+    + '<tr><th>ドメイン</th><th>正答</th><th>率</th><th></th></tr>';
+  doms.forEach(dm => {
+    const as = result.answers.filter(a => qById[a.id].domain === dm);
+    const d = DOM_BY_ID[dm];
+    h += rateRowHTML('D' + dm + (d ? '：' + d.name_ja : ''),
+      as.filter(a => a.chosen === a.correct).length, as.length);
+  });
+  h += '</table></div>';
+
+  // 全問レビュー
+  h += '<div class="card"><div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-bottom:6px">'
+    + '<h3>全問レビュー</h3>'
+    + '<span class="seg" id="rv-lang">'
+    + '<button data-lang="en"' + (review.lang === 'en' ? ' class="active"' : '') + '>EN</button>'
+    + '<button data-lang="ja"' + (review.lang === 'ja' ? ' class="active"' : '') + '>JA</button>'
+    + '<button data-lang="both"' + (review.lang === 'both' ? ' class="active"' : '') + '>EN+JA</button>'
+    + '</span></div><div id="rv-list"></div></div>';
+
+  $('#mk-result').innerHTML = h;
+  $('#mk-export').addEventListener('click', () => {
+    downloadJSON(result, 'ccaf-result' + fileSlug(result.user) + '-' + result.finishedAt.replace(/[:T]/g, '-').slice(0, 16) + '.json');
+  });
+  $('#mk-again').addEventListener('click', renderMockStart);
+  $('#rv-lang').querySelectorAll('button').forEach(b => {
+    b.addEventListener('click', () => {
+      review.lang = b.dataset.lang;
+      $('#rv-lang').querySelectorAll('button').forEach(x => x.classList.toggle('active', x === b));
+      renderReviewList();
+    });
+  });
+  renderReviewList();
+}
+function renderReviewList(){
+  const { result, questions } = lastResult;
+  const ansById = {}; result.answers.forEach(a => ansById[a.id] = a);
+  const lang = review.lang;
+  let h = '';
+  questions.forEach((q, i) => {
+    const a = ansById[q.id];
+    const ok = a.chosen === q.correct;
+    h += '<div class="review-item">';
+    h += '<div class="rhead"><span class="rmark ' + (ok ? 'ok' : 'ng') + '">' + (ok ? '○' : '×') + '</span>'
+      + '<b>問 ' + (i + 1) + '</b><span class="chip">' + esc(q.id) + '</span>'
+      + '<span class="chip dom">D' + q.domain + ' / ' + esc(q.task_statement) + '</span>'
+      + (a.flagged ? '<span class="chip" style="color:var(--flag);border-color:var(--flag)">⚑ flag</span>' : '')
+      + '</div>';
+    h += qTextHTML(q, lang);
+    h += '<div class="options">';
+    ['A','B','C','D'].forEach(k => {
+      let cls = 'opt';
+      if (k === q.correct) cls += ' correct';
+      else if (k === a.chosen) cls += ' wrong-chosen';
+      h += '<div class="' + cls + '"><span class="key">' + k + '</span><span class="body">'
+        + optBodyHTML(q, k, lang) + '</span></div>';
+    });
+    h += '</div>';
+    h += '<div class="exp-block"><h4>' + tLabel(lang, 'なぜ ' + q.correct + ' が正解か', 'Why ' + q.correct + ' is correct') + '</h4><p>'
+      + expText(q, 'why_correct', lang) + '</p></div>';
+    if (!ok && a.chosen && q.explanation_ja[a.chosen]){
+      h += '<div class="exp-block"><h4>' + tLabel(lang, 'あなたが選んだ ' + esc(a.chosen) + ' の誤答理由', 'Why your choice ' + esc(a.chosen) + ' is wrong') + '</h4>'
+        + '<div class="exp-wrong mine"><span class="k">' + esc(a.chosen) + '</span>　'
+        + expText(q, a.chosen, lang) + '</div></div>';
+    }
+    if (!a.chosen){
+      h += '<p class="small muted">' + tLabel(lang, '（この問題は未回答でした）', '(This question was left unanswered)') + '</p>';
+    }
+    h += '<div class="exp-block"><div class="lesson">' + lessonText(q, lang) + '</div></div>';
+    h += commentFormHTML(q.id);
+    h += '</div>';
+  });
+  $('#rv-list').innerHTML = h;
+}
+renderMockStart();
+
+/* ==================================================================
+   履歴タブ
+================================================================== */
+function renderHistory(){
+  const hist = loadLS(LS_HISTORY, []);
+  const box = $('#hist-box');
+  if (!hist.length){
+    box.innerHTML = '<div class="empty">本番モードの履歴はまだありません。<br>「本番モード」タブから模試を受けると、ここに結果が記録されます。</div>'
+      + feedbackSectionHTML();
+    bindFeedbackSection();
+    return;
+  }
+  let h = '<div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:8px">'
+    + '<h3>本番モード履歴（' + hist.length + ' 回）</h3>'
+    + '<span class="spacer" style="flex:1"></span>'
+    + '<button class="btn-danger small" id="hist-clear">履歴を消去</button></div>';
+  h += '<p class="small muted" style="margin-bottom:6px">バーは換算スコア（0〜1000、緑=720以上）の推移です。</p>';
+  hist.slice().reverse().forEach((r, revIdx) => {
+    const idx = hist.length - 1 - revIdx;
+    const pass = r.scaledEstimate >= EX.passing_scaled_score;
+    h += '<div class="hist-row">'
+      + '<span class="when">' + fmtDateTime(r.finishedAt) + '</span>'
+      + '<span class="chip user">👤 ' + esc(userLabel(r.user)) + '</span>'
+      + '<span class="score"><b>' + r.scaledEstimate + '</b> <span class="muted small">('
+      + r.rawScore + '/' + r.total + ')</span></span>'
+      + '<span class="muted small" style="flex:0 0 90px">' + fmtDur(r.durationSec) + '</span>'
+      + '<span class="bar ' + (pass ? 'ok' : 'ng') + '"><i style="width:'
+      + Math.round(r.scaledEstimate / 1000 * 100) + '%"></i></span>'
+      + '<button class="small" data-dl="' + idx + '">JSON</button>'
+      + '</div>';
+  });
+  h += feedbackSectionHTML();
+  box.innerHTML = h;
+  bindFeedbackSection();
+  box.querySelectorAll('[data-dl]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const r = hist[+btn.dataset.dl];
+      downloadJSON(r, 'ccaf-result' + fileSlug(r.user) + '-' + r.finishedAt.replace(/[:T]/g, '-').slice(0, 16) + '.json');
+    });
+  });
+  $('#hist-clear').addEventListener('click', () => {
+    if (confirm('本番モードの履歴をすべて消去します。よろしいですか？')){
+      localStorage.removeItem(LS_HISTORY);
+      renderHistory();
+    }
+  });
+}
+})();
+</script>
+</body>
+</html>
